@@ -1,4 +1,4 @@
-from register_specs import RegisterSpec, RegisterType
+from src.nlab_modbus.core.register_specs import RegisterSpec, RegisterType
 
 
 class BaseModbusDevice:
