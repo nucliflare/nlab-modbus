@@ -1,4 +1,4 @@
-from src.nlab_modbus.core.register_specs import RegisterSpec, RegisterType
+from nlab_modbus.core.register_specs import RegisterSpec, RegisterType
 
 GEIGER_REGISTER_MAP = {
     # Holding registers

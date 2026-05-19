@@ -1,6 +1,6 @@
 from src.nlab_modbus.core.register_specs import RegisterSpec, RegisterType
 
-HV_REGISTER_MAP = {
+PSU_REGISTER_MAP = {
     # Holding registers
     "rs485_mb_addr": RegisterSpec(reg_type=RegisterType.HOLDING, address=0, dtype="uint16", min=1, max=254),
     "rs485_baud": RegisterSpec(reg_type=RegisterType.HOLDING, address=1, dtype="uint16", min=96, max=10000, scale=100),
