@@ -1,4 +1,5 @@
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
+from nlab_modbus.core.register_specs import RegisterType
 from nlab_modbus.maps.sipm_map import SIPM_REGISTER_MAP
 
 
@@ -225,3 +226,29 @@ class SiPMDevice(BaseModbusDevice):
     def get_pid_saturation(self) -> int:
         """Get PID saturation status"""
         return self.read("pid_saturation")
+
+    def get_all_holding_registers(self) -> dict:
+        """
+        Get all holding register values in the order defined in SIPM_REGISTER_MAP.
+
+        Returns:
+            dict: A dictionary mapping register names to their current values.
+        """
+        result = {}
+        for reg_name, spec in self.register_map.items():
+            if spec.reg_type == RegisterType.HOLDING:
+                result[reg_name] = self.read(reg_name)
+        return result
+
+    def get_all_input_registers(self) -> dict:
+        """
+        Get all input register values in the order defined in SIPM_REGISTER_MAP.
+
+        Returns:
+            dict: A dictionary mapping register names to their current values.
+        """
+        result = {}
+        for reg_name, spec in self.register_map.items():
+            if spec.reg_type == RegisterType.INPUT:
+                result[reg_name] = self.read(reg_name)
+        return result

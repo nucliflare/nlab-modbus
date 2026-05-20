@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 
 from pymodbus.client import ModbusSerialClient
@@ -40,11 +41,36 @@ def find_serial_port() -> str:
         print(f"Please choose a number between 1 and {len(ports)}.")
 
 
+def clear_screen() -> None:
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+def build_status_text(sipm) -> str:
+    lines = []
+
+    lines.append("== Status of holding registers ==")
+    for i, (key, value) in enumerate(sipm.get_all_holding_registers().items(), start=1):
+        lines.append(f"{i}. {key}: {value}")
+
+    lines.append("")
+    lines.append("== Status of input registers ==")
+    for i, (key, value) in enumerate(sipm.get_all_input_registers().items(), start=1):
+        lines.append(f"{i}. {key}: {value}")
+
+    return "\n".join(lines)
+
+
 def main() -> int:
+    from colorama import just_fix_windows_console
+
+    just_fix_windows_console()
+
+    # Attempt to find and select a serial port for communication
     try:
         port = find_serial_port()
         print("Port found:", port)
 
+        # Initialize the Modbus serial client with the selected port and communication parameters
         client = ModbusSerialClient(
             port=port,
             baudrate=115200,
@@ -54,27 +80,32 @@ def main() -> int:
             timeout=2.0,
         )
 
+        # Create an instance of the SiPM device using the Modbus client
         sipm = SiPMDevice(
             client=client,
             device_id=1,
         )
 
+        # Establish connection to the SiPM device
         sipm.connect()
 
         try:
-            hardware_ver = sipm.get_hardware_version()
-            firmware_ver = sipm.get_firmware_version()
+            print(build_status_text(sipm))
+            # time.sleep(0.1)
 
-            print(f"Hardware version: {hardware_ver}")
-            print(f"Firmware version: {firmware_ver}")
+        except KeyboardInterrupt:
+            print("\nStopped.")
 
         finally:
+            # Ensure the connection to the SiPM device is closed
             sipm.close()
 
     except Exception as exc:
+        # Handle any unexpected errors during execution
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
+    # Return success status
     return 0
 
 
