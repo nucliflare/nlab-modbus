@@ -6,7 +6,7 @@ import sys
 from pymodbus.client import ModbusSerialClient
 from serial.tools import list_ports
 
-from nlab_modbus.devices.sipm import SiPMDevice
+from nlab_modbus.devices.geiger import GeigerDevice
 
 
 def find_serial_port() -> str:
@@ -81,24 +81,27 @@ def main() -> int:
         )
 
         # Create an instance of the SiPM device using the Modbus client
-        sipm = SiPMDevice(
+        geiger = GeigerDevice(
             client=client,
             device_id=1,
         )
 
         # Establish connection to the SiPM device
-        sipm.connect()
+        geiger.connect()
 
         try:
-            print(build_status_text(sipm))
+            print(build_status_text(geiger))
             # time.sleep(0.1)
+
+        except Exception as e:
+            print(str(e))
 
         except KeyboardInterrupt:
             print("\nStopped.")
 
         finally:
             # Ensure the connection to the SiPM device is closed
-            sipm.close()
+            geiger.close()
 
     except Exception as exc:
         # Handle any unexpected errors during execution

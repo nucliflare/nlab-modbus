@@ -1,12 +1,14 @@
 from typing import Any
 
+from pymodbus.client import ModbusSerialClient, ModbusTcpClient
+
 from nlab_modbus.core.register_specs import RegisterSpec, RegisterType
 
 
 class BaseModbusDevice:
     register_map: dict[str, RegisterSpec] = {}
 
-    def __init__(self, client, device_id: int):
+    def __init__(self, client: ModbusSerialClient | ModbusTcpClient, device_id: int):
         self.client = client
         self.device_id = device_id
 
