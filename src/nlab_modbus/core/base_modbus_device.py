@@ -11,6 +11,7 @@ class BaseModbusDevice:
     def __init__(self, client: ModbusSerialClient | ModbusTcpClient, device_id: int):
         self.client = client
         self.device_id = device_id
+        self.device_type = None
 
     def read(self, name: str) -> Any:
         spec = self._get_spec(name)
@@ -134,3 +135,22 @@ class BaseModbusDevice:
     def close(self) -> None:
         """Alias for disconnect(), useful because PyModbus uses close()."""
         self.disconnect()
+
+    def connection_info(self) -> str:
+        """Return a human-readable description of the client connection.
+
+        Returns
+        -------
+        str
+            ``"serial://<port>"`` for ModbusSerialClient or
+            ``"<host>:<port>"`` for ModbusTcpClient.
+        """
+        from pymodbus.client import ModbusSerialClient, ModbusTcpClient
+
+        if isinstance(self.client, ModbusSerialClient):
+            return f"serial://{self.client.comm_params.host}:{self.device_id}"
+
+        if isinstance(self.client, ModbusTcpClient):
+            return f"{self.client.comm_params.host}:{self.client.comm_params.port}:{self.device_id}"
+
+        return f"unknown://{type(self.client).__name__}"

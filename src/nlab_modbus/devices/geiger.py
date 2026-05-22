@@ -1,4 +1,5 @@
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
+from nlab_modbus.core.enums import DeviceType
 from nlab_modbus.core.register_specs import RegisterType
 from nlab_modbus.maps.geiger_map import GEIGER_REGISTER_MAP
 
@@ -6,8 +7,13 @@ from nlab_modbus.maps.geiger_map import GEIGER_REGISTER_MAP
 class GeigerDevice(BaseModbusDevice):
     register_map = GEIGER_REGISTER_MAP
 
-    def __init__(self, client, device_id: int):
+    def __init__(
+        self,
+        client,
+        device_id: int,
+    ):
         super().__init__(client, device_id)
+        self.device_type: DeviceType = DeviceType.GEIGER
 
     # Holding register getters and setters
     def get_rs485_mb_addr(self) -> int:
