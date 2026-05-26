@@ -20,15 +20,6 @@ logging.getLogger("pymodbus").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class FoundModbusDevice:
-    type: DeviceType
-    device_id: int
-    port: str
-    description: str | None = None
-    hardware_id: int | None = None
-
-
 def scan_local_modbus_devices(
     device_ids: Iterable[int] = range(1, 17),
     baudrate: int = 115200,
@@ -91,27 +82,7 @@ def scan_local_modbus_devices(
     return found
 
 
-def clear_screen() -> None:
-    os.system("cls" if os.name == "nt" else "clear")
-
-
-def build_status_text(device) -> str:
-    lines = []
-
-    print(f"Device {device.device_type.name}:", device.connection_info())
-    lines.append("== Status of holding registers ==")
-    for i, (key, value) in enumerate(device.get_all_holding_registers().items(), start=1):
-        lines.append(f"{i}. {key}: {value}")
-
-    lines.append("")
-    lines.append("== Status of input registers ==")
-    for i, (key, value) in enumerate(device.get_all_input_registers().items(), start=1):
-        lines.append(f"{i}. {key}: {value}")
-
-    return "\n".join(lines) + "\n"
-
-
-def scan_remote_devices(
+def scan_remote_modbus_devices(
     host: str,
     port: int,
     candidate_ids: range | None = None,
@@ -155,73 +126,3 @@ def scan_remote_devices(
             client.close()
 
     return found
-
-
-def main() -> int:
-
-    HOST = "192.168.10.134"
-    PORTS = [5001, 5002]
-
-    all_devices = []
-    for port in PORTS:
-        remote_found = scan_remote_devices(HOST, port=port)
-        print("Remote found", remote_found)
-        client = ModbusTcpClient(
-            host=HOST,
-            port=port,
-            framer=FramerType.RTU,
-            timeout=2.0,
-        )
-        for paramters in remote_found:
-            device_id = paramters["device_id"]
-            match paramters["type"]:
-                case DeviceType.GEIGER:
-                    device = GeigerDevice(client=client, device_id=device_id)
-                case DeviceType.SIPM:
-                    device = SiPMDevice(client=client, device_id=device_id)
-                case DeviceType.PSU:
-                    device = PSUDevice(client=client, device_id=device_id)
-
-            device.connect()
-            all_devices.append(device)
-
-    local_found = scan_local_modbus_devices(
-        device_ids=range(1, 16),
-        baudrate=115200,
-        timeout=0.1,
-    )
-    print("Local found", local_found)
-    for parameters in local_found:
-        client = ModbusSerialClient(
-            port=parameters["port"],
-            framer=FramerType.RTU,
-            baudrate=115200,
-            bytesize=8,
-            parity="N",
-            stopbits=1,
-            timeout=0.1,
-            retries=1,
-        )
-        device_id = paramters["device_id"]
-        match paramters["type"]:
-            case DeviceType.GEIGER:
-                device = GeigerDevice(client=client, device_id=device_id)
-            case DeviceType.SIPM:
-                device = SiPMDevice(client=client, device_id=device_id)
-            case DeviceType.PSU:
-                device = PSUDevice(client=client, device_id=device_id)
-
-        device.connect()
-        all_devices.append(device)
-
-    for device in all_devices:
-        print(build_status_text(device))
-
-    for device in all_devices:
-        device.close()
-
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

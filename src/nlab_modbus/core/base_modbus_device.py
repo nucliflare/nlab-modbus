@@ -154,3 +154,45 @@ class BaseModbusDevice:
             return f"{self.client.comm_params.host}:{self.client.comm_params.port}:{self.device_id}"
 
         return f"unknown://{type(self.client).__name__}"
+
+    def get_all_holding_registers(self) -> dict:
+        """
+        Get all holding register values in the order defined in PSU_REGISTER_MAP.
+
+        Returns:
+            dict: A dictionary mapping register names to their current values.
+        """
+        result = {}
+        for reg_name, spec in self.register_map.items():
+            if spec.reg_type == RegisterType.HOLDING:
+                result[reg_name] = self.read(reg_name)
+        return result
+
+    def get_all_input_registers(self) -> dict:
+        """
+        Get all input register values in the order defined in PSU_REGISTER_MAP.
+
+        Returns:
+            dict: A dictionary mapping register names to their current values.
+        """
+        result = {}
+        for reg_name, spec in self.register_map.items():
+            if spec.reg_type == RegisterType.INPUT:
+                result[reg_name] = self.read(reg_name)
+        return result
+
+    def build_status_text(self) -> str:
+        lines = []
+
+        if self.device_type is not None:
+            print(f"Device {self.device_type.name}:", self.connection_info())
+        lines.append("== Status of holding registers ==")
+        for i, (key, value) in enumerate(self.get_all_holding_registers().items(), start=1):
+            lines.append(f"{i}. {key}: {value}")
+
+        lines.append("")
+        lines.append("== Status of input registers ==")
+        for i, (key, value) in enumerate(self.get_all_input_registers().items(), start=1):
+            lines.append(f"{i}. {key}: {value}")
+
+        return "\n".join(lines) + "\n"
