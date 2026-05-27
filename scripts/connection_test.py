@@ -81,6 +81,7 @@ def scan_local_modbus_devices(
                             "hardware_id": hardware_id,
                         }
                     )
+                    logger.info("Register found:", result.registers[0])
 
                 except (ModbusException, OSError, ValueError):
                     continue
@@ -143,7 +144,7 @@ def scan_remote_modbus_devices(
                 device_id=device_id,
             )
             if not result.isError():
-                print("Register found:", result.registers[0])
+                logger.info("Register found:", result.registers[0])
                 found.append({"type": DeviceType(int(result.registers[0])), "device_id": device_id, "host": host, "port": port})
         except Exception:
             pass  # silently skip unresponsive IDs
@@ -157,7 +158,7 @@ def main() -> int:
 
     HOST = "192.168.10.134"
     PORTS = [5001, 5002]
-
+    print("Testing connections")
     all_devices = []
     for port in PORTS:
         remote_found = scan_remote_modbus_devices(HOST, port=port)
