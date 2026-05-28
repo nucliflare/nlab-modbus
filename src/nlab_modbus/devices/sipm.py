@@ -1,6 +1,5 @@
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
-from nlab_modbus.core.register_specs import RegisterType
 from nlab_modbus.maps.sipm_map import SIPM_REGISTER_MAP
 
 

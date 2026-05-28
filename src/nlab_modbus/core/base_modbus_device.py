@@ -181,11 +181,11 @@ class BaseModbusDevice:
                 result[reg_name] = self.read(reg_name)
         return result
 
-    def build_status_text(self) -> str:
+    def get_status(self) -> str:
         lines = []
 
         if self.device_type is not None:
-            print(f"Device {self.device_type.name}:", self.connection_info())
+            lines.append(f"Device {self.device_type.name}: {self.connection_info()}")
         lines.append("== Status of holding registers ==")
         for i, (key, value) in enumerate(self.get_all_holding_registers().items(), start=1):
             lines.append(f"{i}. {key}: {value}")

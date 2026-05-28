@@ -1,33 +1,20 @@
 from __future__ import annotations
 
 import logging
-import os
-from dataclasses import dataclass
+import time
 from typing import Iterable
 
 from pymodbus.client import ModbusSerialClient, ModbusTcpClient
 from pymodbus.exceptions import ModbusException
 from pymodbus.framer import FramerType
 from serial.tools import list_ports
+from zeroconf import ServiceBrowser, ServiceListener, Zeroconf, ZeroconfServiceTypes
 
-from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
-from nlab_modbus.devices.geiger import GeigerDevice
-from nlab_modbus.devices.psu import PSUDevice
-from nlab_modbus.devices.sipm import SiPMDevice
 
 logging.getLogger("pymodbus").setLevel(logging.CRITICAL)
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class FoundModbusDevice:
-    type: DeviceType
-    device_id: int
-    port: str
-    description: str | None = None
-    hardware_id: int | None = None
 
 
 def scan_local_modbus_devices(
@@ -37,7 +24,7 @@ def scan_local_modbus_devices(
     parity: str = "N",
     stopbits: int = 1,
     timeout: float = 0.25,
-    retries: int = 1,
+    retries: int = 0,
 ) -> list[dict]:
     found: list[dict] = []
 
@@ -93,22 +80,6 @@ def scan_local_modbus_devices(
     return found
 
 
-def build_status_text(device) -> str:
-    lines = []
-
-    print(f"Device {device.device_type.name}:", device.connection_info())
-    lines.append("== Status of holding registers ==")
-    for i, (key, value) in enumerate(device.get_all_holding_registers().items(), start=1):
-        lines.append(f"{i}. {key}: {value}")
-
-    lines.append("")
-    lines.append("== Status of input registers ==")
-    for i, (key, value) in enumerate(device.get_all_input_registers().items(), start=1):
-        lines.append(f"{i}. {key}: {value}")
-
-    return "\n".join(lines) + "\n"
-
-
 def scan_remote_modbus_devices(
     host: str,
     port: int,
@@ -155,71 +126,53 @@ def scan_remote_modbus_devices(
     return found
 
 
-def main() -> int:
+def scan_remote_boards(
+    timeout: float = 1.0,
+    name_filter: str | None = "nucliflare",
+    service_type: str | None = None,
+) -> dict:
+    """One-shot mDNS scan. Returns {name: {...}} and cleans up before returning.
 
-    HOST = "192.168.10.134"
-    PORTS = [5001, 5002]
-    print("Testing connections")
-    all_devices = []
-    for port in PORTS:
-        remote_found = scan_remote_modbus_devices(HOST, port=port)
-        print("Remote found", remote_found)
-        client = ModbusTcpClient(
-            host=HOST,
-            port=port,
-            framer=FramerType.RTU,
-            timeout=2.0,
-        )
-        for parameters in remote_found:
-            device_id = parameters["device_id"]
-            match parameters["type"]:
-                case DeviceType.GEIGER:
-                    device = GeigerDevice(client=client, device_id=device_id)
-                case DeviceType.SIPM:
-                    device = SiPMDevice(client=client, device_id=device_id)
-                case DeviceType.PSU:
-                    device = PSUDevice(client=client, device_id=device_id)
+    If name_filter is given, only devices whose service name contains that
+    substring are collected. If None, every device is collected.
+    """
+    zc = Zeroconf()
+    found: dict = {}
 
-            device.connect()
-            all_devices.append(device)
+    class _Collector(ServiceListener):
+        def add_service(self, zc_, type_, name):
+            if name_filter is not None and name_filter not in name:
+                return  # skip resolving entirely — cheaper than filtering after
+            info = zc_.get_service_info(type_, name, timeout=int(timeout * 1000))
+            if not info:
+                return
+            found[name] = {
+                "type": type_,
+                "addresses": info.parsed_addresses(),
+                "port": info.port,
+                "server": info.server,
+                "properties": {(k.decode() if isinstance(k, bytes) else k): (v.decode() if isinstance(v, bytes) else v) for k, v in info.properties.items()},
+            }
 
-    local_found = scan_local_modbus_devices(
-        device_ids=range(1, 16),
-        baudrate=115200,
-        timeout=0.5,
-    )
-    print("Local found", local_found)
-    for parameters in local_found:
-        client = ModbusSerialClient(
-            port=parameters["port"],
-            framer=FramerType.RTU,
-            baudrate=115200,
-            bytesize=8,
-            parity="N",
-            stopbits=1,
-            timeout=0.1,
-            retries=1,
-        )
-        device_id = parameters["device_id"]
-        match parameters["type"]:
-            case DeviceType.GEIGER:
-                device = GeigerDevice(client=client, device_id=device_id)
-            case DeviceType.SIPM:
-                device = SiPMDevice(client=client, device_id=device_id)
-            case DeviceType.PSU:
-                device = PSUDevice(client=client, device_id=device_id)
+        update_service = add_service
 
-        device.connect()
-        all_devices.append(device)
+        def remove_service(self, *a):
+            pass
 
-    for device in all_devices:
-        print(device.get_status())
+    try:
+        if service_type:
+            types = [service_type]
+        else:
+            types = list(ZeroconfServiceTypes.find(zc=zc, timeout=timeout))
 
-    for device in all_devices:
-        device.close()
+        browsers = [ServiceBrowser(zc, t, _Collector()) for t in types]
+        time.sleep(timeout)
+    finally:
+        zc.close()
 
-    return 0
+    return found
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    for name, d in scan_remote_boards().items():
+        print(name, d["addresses"], d["port"])
