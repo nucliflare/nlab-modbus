@@ -1,3 +1,4 @@
+import asyncio
 from typing import Iterable
 
 from pymodbus.client import ModbusSerialClient, ModbusTcpClient
@@ -65,7 +66,8 @@ class DeviceManager:
         found_local = scan_local_modbus_devices(
             device_ids=device_ids, baudrate=baudrate, bytesize=bytesize, parity=parity, stopbits=stopbits, timeout=timeout, retries=retries
         )
-        ports = list({item["port"] for port in found_local for item in port})
+        # print(found_local)
+        ports = list({item["port"] for item in found_local})
 
         for port in ports:
             client = ModbusSerialClient(
@@ -105,8 +107,23 @@ class DeviceManager:
                 device = create_device(client, parameters["device_id"], parameters["type"])
                 self.remote.append(device)
 
-    def scan_remote_boards(self, name="nucliflare"):
+    def scan_remote_ips(self, name="nucliflare"):
+        """Sync-callable everywhere. Returns dict directly."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = False
+        else:
+            running_loop = True
+
+        if running_loop:
+            # Jupyter or qasync: can't block; caller should use the async variant.
+            raise RuntimeError("Running loop detected — use `await self.scan_remote_ips_async(name)`.")
+        # plain script / Qt worker thread: no loop, just run it
         return scan_remote_boards(name_filter=name)
+
+    async def scan_remote_ips_async(self, name="nucliflare"):
+        return await asyncio.to_thread(scan_remote_boards, name_filter=name)
 
     def get_all_devices(self):
         """Return a combined list of all managed devices.

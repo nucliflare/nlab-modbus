@@ -69,7 +69,7 @@ def scan_local_modbus_devices(
                             "hardware_id": hardware_id,
                         }
                     )
-                    logger.info("Register found:", result.registers[0])
+                    logger.info(f"Register found: {result.registers[0]}")
 
                 except (ModbusException, OSError, ValueError):
                     continue
@@ -116,7 +116,7 @@ def scan_remote_modbus_devices(
                 device_id=device_id,
             )
             if not result.isError():
-                logger.info("Register found:", result.registers[0])
+                logger.info(f"Register found: {result.registers[0]}")
                 found.append({"type": DeviceType(int(result.registers[0])), "device_id": device_id, "host": host, "port": port})
         except Exception:
             pass  # silently skip unresponsive IDs
@@ -130,7 +130,7 @@ def scan_remote_boards(
     timeout: float = 1.0,
     name_filter: str | None = "nucliflare",
     service_type: str | None = None,
-) -> dict:
+) -> list:
     """One-shot mDNS scan. Returns {name: {...}} and cleans up before returning.
 
     If name_filter is given, only devices whose service name contains that
@@ -170,9 +170,6 @@ def scan_remote_boards(
     finally:
         zc.close()
 
-    return found
+    ips = [items["addresses"][0] for name, items in found.items()]
 
-
-if __name__ == "__main__":
-    for name, d in scan_remote_boards().items():
-        print(name, d["addresses"], d["port"])
+    return ips
