@@ -50,7 +50,7 @@ class DeviceManager:
         parity: str = "N",
         stopbits: int = 1,
         timeout: float = 0.25,
-        retries: int = 1,
+        retries: int = 0,
     ):
         """Scan local serial ports for Modbus devices and add them to the local collection.
 
@@ -77,7 +77,7 @@ class DeviceManager:
                 bytesize=8,
                 parity="N",
                 stopbits=1,
-                timeout=0.1,
+                timeout=0.15,
                 retries=0,
             )
             for parameters in found_local:
@@ -102,7 +102,7 @@ class DeviceManager:
                     host=host,
                     port=port,
                     framer=FramerType.RTU,
-                    timeout=2.0,
+                    timeout=0.15,
                 )
                 device = create_device(client, parameters["device_id"], parameters["type"])
                 self.remote.append(device)

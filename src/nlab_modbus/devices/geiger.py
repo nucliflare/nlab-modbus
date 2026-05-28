@@ -263,7 +263,7 @@ class GeigerDevice(BaseModbusDevice):
 
     def get_pulses_per_sec(self) -> int:
         """Get pulses per second"""
-        return self.read("pulses_per_sec")
+        return int(self.read("pulses_per_sec"))
 
     def get_dose_level_msvh(self) -> float:
         """Get dose level in mSv/h"""
