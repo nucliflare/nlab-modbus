@@ -1,16 +1,29 @@
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
-from nlab_modbus.core.register_specs import build_register_index
+from nlab_modbus.core.register_specs import RegisterType, build_register_index, decode_register_block
 from nlab_modbus.maps.sipm_map import SIPM_REGISTER_MAP
 
 
 class SiPMDevice(BaseModbusDevice):
-    register_map = SIPM_REGISTER_MAP
+    REGISTER_MAP = SIPM_REGISTER_MAP
+    READOUT_START = 3
+    READOUT_STOP = 22
 
     def __init__(self, client, device_id: int):
         super().__init__(client, device_id)
         self.device_type: DeviceType = DeviceType.SIPM
-        self._register_index = build_register_index(SiPMDevice.register_map)
+        self._register_index = build_register_index(SiPMDevice.REGISTER_MAP)
+
+    def read_snapshot(self) -> dict[str, int | float]:
+        count = SiPMDevice.READOUT_STOP - SiPMDevice.READOUT_START
+        registers = self.read_raw_block(address=SiPMDevice.READOUT_START, count=count)
+
+        return decode_register_block(
+            registers,
+            start_address=SiPMDevice.READOUT_START,
+            register_type=RegisterType.INPUT,
+            register_index=self._register_index,
+        )
 
     # Holding register getters and setters
     def get_rs485_mb_addr(self) -> int:

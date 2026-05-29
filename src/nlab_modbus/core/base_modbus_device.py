@@ -58,7 +58,7 @@ class BaseModbusDevice:
             count=count,
             device_id=self.device_id,
         )
-        return result_raw
+        return result_raw.registers
 
     def write_raw(self, name: str, registers: list[int]) -> None:
         spec = self._get_spec(name)

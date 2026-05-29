@@ -35,3 +35,35 @@ def build_register_index(register_map: dict[str, RegisterSpec]) -> dict[Register
         index[key] = name, spec
 
     return index
+
+
+def decode_register_value(raw_value: int, spec: RegisterSpec) -> int | float:
+    value = raw_value
+
+    if spec.dtype == "int16" and value >= 0x8000:
+        value -= 0x10000
+
+    return value * spec.scale
+
+
+def decode_register_block(
+    registers: list[int],
+    *,
+    start_address: int,
+    register_type: RegisterType,
+    register_index: dict[RegisterKey, tuple[str, RegisterSpec]],
+) -> dict[str, int | float]:
+    decoded: dict[str, int | float] = {}
+
+    for offset, raw_value in enumerate(registers):
+        address = start_address + offset
+        key = (register_type, address)
+
+        match = register_index.get(key)
+        if match is None:
+            continue
+
+        name, spec = match
+        decoded[name] = decode_register_value(raw_value, spec)
+
+    return decoded

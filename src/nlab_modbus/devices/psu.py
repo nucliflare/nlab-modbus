@@ -1,16 +1,29 @@
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
-from nlab_modbus.core.register_specs import build_register_index
+from nlab_modbus.core.register_specs import RegisterType, build_register_index, decode_register_block
 from nlab_modbus.maps.psu_map import PSU_REGISTER_MAP
 
 
 class PSUDevice(BaseModbusDevice):
-    register_map = PSU_REGISTER_MAP
+    REGISTER_MAP = PSU_REGISTER_MAP
+    READOUT_START = 3
+    READOUT_STOP = 16
 
     def __init__(self, client, device_id: int):
         super().__init__(client, device_id)
         self.device_type: DeviceType = DeviceType.PSU
-        self._register_index = build_register_index(PSUDevice.register_map)
+        self._register_index = build_register_index(PSUDevice.REGISTER_MAP)
+
+    def read_snapshot(self) -> dict[str, int | float]:
+        count = PSUDevice.READOUT_STOP - PSUDevice.READOUT_START
+        registers = self.read_raw_block(address=PSUDevice.READOUT_START, count=count)
+
+        return decode_register_block(
+            registers,
+            start_address=PSUDevice.READOUT_START,
+            register_type=RegisterType.INPUT,
+            register_index=self._register_index,
+        )
 
     # Holding register getters and setters
     def get_rs485_mb_addr(self) -> int:
