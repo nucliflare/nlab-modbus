@@ -6,7 +6,7 @@ from nlab_modbus.core.register_specs import RegisterSpec, RegisterType
 
 
 class BaseModbusDevice:
-    register_map: dict[str, RegisterSpec] = {}
+    REGISTER_MAP: dict[str, RegisterSpec] = {}
 
     def __init__(self, client: ModbusSerialClient | ModbusTcpClient, device_id: int):
         self.client = client
@@ -53,7 +53,7 @@ class BaseModbusDevice:
         return result.registers
 
     def read_raw_block(self, address: int, count: int = 1):
-        result_raw = self.client.read_holding_registers(
+        result_raw = self.client.read_input_registers(
             address=address,
             count=count,
             device_id=self.device_id,
@@ -127,7 +127,7 @@ class BaseModbusDevice:
 
     def _get_spec(self, name: str) -> RegisterSpec:
         try:
-            return self.register_map[name]
+            return self.REGISTER_MAP[name]
         except KeyError as exc:
             raise KeyError(f"Unknown register {name!r}") from exc
 
@@ -171,7 +171,7 @@ class BaseModbusDevice:
             dict: A dictionary mapping register names to their current values.
         """
         result = {}
-        for reg_name, spec in self.register_map.items():
+        for reg_name, spec in self.REGISTER_MAP.items():
             if spec.reg_type == RegisterType.HOLDING:
                 result[reg_name] = self.read(reg_name)
         return result
@@ -184,7 +184,7 @@ class BaseModbusDevice:
             dict: A dictionary mapping register names to their current values.
         """
         result = {}
-        for reg_name, spec in self.register_map.items():
+        for reg_name, spec in self.REGISTER_MAP.items():
             if spec.reg_type == RegisterType.INPUT:
                 result[reg_name] = self.read(reg_name)
         return result

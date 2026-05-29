@@ -16,6 +16,7 @@ dependencies = [
 dev = [
     "matplotlib",
     "numpy",
+    "PySide2"
 ]
 
 [tool.setuptools.packages.find]
