@@ -52,6 +52,14 @@ class BaseModbusDevice:
 
         return result.registers
 
+    def read_raw_block(self, address: int, count: int = 1):
+        result_raw = self.client.read_holding_registers(
+            address=address,
+            count=count,
+            device_id=self.device_id,
+        )
+        return result_raw
+
     def write_raw(self, name: str, registers: list[int]) -> None:
         spec = self._get_spec(name)
 

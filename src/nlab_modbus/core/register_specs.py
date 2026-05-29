@@ -17,3 +17,21 @@ class RegisterSpec:
     count: int = 1
     scale: float = 1.0
     unit: str | None = None
+
+
+RegisterKey = tuple[RegisterType, int]
+
+
+def build_register_index(register_map: dict[str, RegisterSpec]) -> dict[RegisterKey, tuple[str, RegisterSpec]]:
+    index: dict[RegisterKey, tuple[str, RegisterSpec]] = {}
+
+    for name, spec in register_map.items():
+        key = (spec.reg_type, spec.address)
+
+        if key in index:
+            previous_name, previous_spec = index[key]
+            raise ValueError(f"Duplicate register {key}: {previous_name!r} {previous_spec} and {name!r} {spec}")
+
+        index[key] = name, spec
+
+    return index
