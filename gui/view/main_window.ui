@@ -140,7 +140,7 @@
            </item>
           </widget>
          </item>
-         <item row="0" column="7" rowspan="2" alignment="Qt::AlignHCenter|Qt::AlignVCenter">
+         <item row="0" column="7" rowspan="2" alignment="Qt::AlignmentFlag::AlignHCenter|Qt::AlignmentFlag::AlignVCenter">
           <widget class="QPushButton" name="pushButton">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
@@ -231,7 +231,7 @@
       <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
@@ -246,7 +246,7 @@
     <item>
      <widget class="QTabWidget" name="device_tab">
       <property name="tabPosition">
-       <enum>QTabWidget::West</enum>
+       <enum>QTabWidget::TabPosition::West</enum>
       </property>
       <property name="currentIndex">
        <number>-1</number>
@@ -261,7 +261,7 @@
      <x>0</x>
      <y>0</y>
      <width>1029</width>
-     <height>22</height>
+     <height>33</height>
     </rect>
    </property>
   </widget>
