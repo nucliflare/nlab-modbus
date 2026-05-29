@@ -1,5 +1,6 @@
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
+from nlab_modbus.core.register_specs import build_register_index
 from nlab_modbus.maps.sipm_map import SIPM_REGISTER_MAP
 
 
@@ -9,6 +10,7 @@ class SiPMDevice(BaseModbusDevice):
     def __init__(self, client, device_id: int):
         super().__init__(client, device_id)
         self.device_type: DeviceType = DeviceType.SIPM
+        self._register_index = build_register_index(SiPMDevice.register_map)
 
     # Holding register getters and setters
     def get_rs485_mb_addr(self) -> int:
