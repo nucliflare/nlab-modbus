@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from controller.tab_controller import DeviceTab
 from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtUiTools import QUiLoader
@@ -12,10 +13,10 @@ from PySide6.QtWidgets import (
     QStatusBar,
     QWidget,
 )
-from serial.tools import list_ports
 
 from nlab_modbus.core.enums import DeviceType
 from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_boards, scan_remote_modbus_devices
+from nlab_modbus.manager import DeviceManager
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MAIN_WINDOW_UI = PROJECT_ROOT / "view" / "main_window.ui"
@@ -31,6 +32,7 @@ class ModbusMainWindow(QMainWindow):
             "local": {},
             "remote": {},
         }
+        self.manager = DeviceManager()
 
         self._setup_window()
         self._setup_menu_bar()
@@ -84,25 +86,29 @@ class ModbusMainWindow(QMainWindow):
         self.ui.port_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.host_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.remote_port_select.currentIndexChanged.connect(self._update_comboboxes)
+        self.ui.local_btn.clicked.connect(self.on_connect_local_clicked)
 
-    def on_connect_clicked(self) -> None:
+    def on_connect_local_clicked(self) -> None:
         """
-        Placeholder for local/remote Modbus connection logic.
+        Local Modbus connection handler.
         """
-        pass
+        port = self.ui.port_select.currentText()
+        baudrate = int(self.ui.baudrate_select.currentText())
+        stopbit = int(self.ui.stopbit_select.currentText())
+        parity = self.ui.parity_select.currentText()[0]
+        device_id, device_type = self.ui.local_select.currentText().split()
+        device = self.manager.connect_local(port, int(device_id), DeviceType[device_type], baudrate, parity, stopbit)
+        self.add_device_tab(device)
+
+    def add_device_tab(self, device):
+        if self.ui.devices_group.isHidden():
+            self.ui.devices_group.show()
+        device_controller = DeviceTab(device)
+        self.ui.devices_tab.addTab(device_controller.ui, device.connection_info())
 
     def on_scan_clicked(self) -> None:
         """
         Placeholder for device discovery logic.
-        """
-        pass
-
-    def add_device_tab(self, device: object) -> None:
-        """
-        Later this will:
-        - load device_tab.ui
-        - create a DeviceTabController
-        - insert the tab into self.ui.tabs_widget
         """
         pass
 

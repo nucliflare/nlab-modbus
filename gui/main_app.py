@@ -6,7 +6,7 @@ from pathlib import Path
 from controller.main_controller import ModbusMainWindow
 from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication
 
 BASE_DIR = Path(__file__).resolve().parent
 UI_PATH = BASE_DIR / "view" / "main_window.ui"

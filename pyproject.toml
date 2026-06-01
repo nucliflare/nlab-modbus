@@ -10,13 +10,14 @@ dependencies = [
     "pymodbus",
     "pyserial",
     "zeroconf",
+    "pyqtgraph",
+    "PySide6"
 ]
 
 [project.optional-dependencies]
 dev = [
     "matplotlib",
     "numpy",
-    "PySide6",
     "pip-licenses"
 ]
 

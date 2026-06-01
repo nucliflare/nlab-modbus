@@ -85,6 +85,31 @@ class DeviceManager:
                     device = create_device(client, parameters["device_id"], parameters["type"])
                     self.local.append(device)
 
+    def connect_local(
+        self,
+        port: str,
+        device_id: int,
+        device_type: DeviceType,
+        baudrate: int = 115200,
+        parity: str = "N",
+        stopbits: int = 1,
+        bytesize: int = 8,
+    ):
+        client = ModbusSerialClient(
+            port=port,
+            framer=FramerType.RTU,
+            baudrate=baudrate,
+            bytesize=bytesize,
+            parity=parity,
+            stopbits=stopbits,
+            timeout=0.15,
+            retries=0,
+        )
+        device = create_device(client, device_id, device_type)
+        if device not in self.local:
+            self.local.append(device)
+        return device
+
     def scan_remote(self, host: str, ports: int | list):
         """Scan a remote host on specified port(s) for Modbus devices and add them to the remote collection.
 
