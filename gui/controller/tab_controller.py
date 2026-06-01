@@ -7,7 +7,7 @@ import pyqtgraph as pg
 from model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, RegisterRow
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 
@@ -76,11 +76,12 @@ class DeviceTab(QWidget):
         widget, you can also use loadUi-style approaches instead. With
         QUiLoader, wrapping it into this widget is usually cleaner.
         """
-        from PySide6.QtWidgets import QVBoxLayout
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.ui)
+
+        self.ui.type_edit.setText(self.device.device_type.name)
 
     def _setup_register_tables(self) -> None:
         self.ui.holding_table_view.setModel(self.holding_model)

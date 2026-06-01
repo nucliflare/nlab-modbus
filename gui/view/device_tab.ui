@@ -22,10 +22,17 @@
         <string>Device</string>
        </property>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="3" column="2">
+        <item row="2" column="2">
          <widget class="QPushButton" name="pushButton_3">
           <property name="text">
            <string>Clear plot</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QPushButton" name="pushButton">
+          <property name="text">
+           <string>Connect</string>
           </property>
          </widget>
         </item>
@@ -36,10 +43,23 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_2">
+        <item row="1" column="2">
+         <widget class="QSpinBox" name="refresh_spinner">
+          <property name="minimum">
+           <number>100</number>
+          </property>
+          <property name="maximum">
+           <number>2500</number>
+          </property>
+          <property name="value">
+           <number>250</number>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QPushButton" name="pushButton_2">
           <property name="text">
-           <string>Connection</string>
+           <string>Disconnect</string>
           </property>
          </widget>
         </item>
@@ -50,44 +70,10 @@
           </property>
          </widget>
         </item>
-        <item row="5" column="0">
-         <widget class="QPushButton" name="pushButton_2">
-          <property name="text">
-           <string>Disconnect</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1" colspan="2">
-         <widget class="QLineEdit" name="connection_edit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QPushButton" name="pushButton">
-          <property name="text">
-           <string>Connect</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
+        <item row="1" column="0">
          <widget class="QLabel" name="label_3">
           <property name="text">
            <string>Refresh rate (ms)</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="2">
-         <widget class="QSpinBox" name="refresh_spinner">
-          <property name="minimum">
-           <number>100</number>
-          </property>
-          <property name="maximum">
-           <number>2500</number>
-          </property>
-          <property name="value">
-           <number>250</number>
           </property>
          </widget>
         </item>
