@@ -16,7 +16,8 @@ dependencies = [
 dev = [
     "matplotlib",
     "numpy",
-    "PySide6"
+    "PySide6",
+    "pip-licenses"
 ]
 
 [tool.setuptools.packages.find]
