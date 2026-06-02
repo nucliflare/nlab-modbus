@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
+import random
 
 import pyqtgraph as pg
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QHeaderView, QWidget
+from PySide6.QtWidgets import QHeaderView, QMainWindow, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
 from nlab_modbus.gui.model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, RegisterRow
+from nlab_modbus.gui.model.ring_buffer import NumpyRingBuffer
+from nlab_modbus.services.polling_worker import DevicePollingThread
 
 
 class DeviceTab(QWidget):
@@ -27,23 +28,28 @@ class DeviceTab(QWidget):
     Prefer feeding it snapshots from a worker/service layer.
     """
 
-    PROJECT_ROOT = Path(__file__).resolve().parents[1]
-    TAB_UI = PROJECT_ROOT / "view" / "device_tab.ui"
-
     def __init__(
         self,
         device: BaseModbusDevice,
-        parent: QWidget | None = None,
+        parent: QMainWindow,
     ) -> None:
         super().__init__(parent)
 
         self.device = device
-
+        self.main_widget = parent
         # self.ui = self._load_ui(self.TAB_UI)
         self.ui = Ui_DeviceTab()
         self.ui.setupUi(self)
+        self.ui.type_edit.setText(device.device_type.name)
+        self.input_register_buffer = {}
+        self.time_buffer = NumpyRingBuffer(1000)
+        self.plot_items = {}
+        # self.main_plot = None
 
-        input_registers = [RegisterRow(i, *pair) for i, pair in enumerate(self.device.get_all_input_registers().items())]
+        input_registers = []
+        for i, (register, value) in enumerate(self.device.get_all_input_registers().items()):
+            self.input_register_buffer[register] = NumpyRingBuffer(1000)
+            input_registers.append(RegisterRow(i, register, value))
         holding_registers = [RegisterRow(i, *pair) for i, pair in enumerate(self.device.get_all_holding_registers().items())]
         self.holding_model = HoldingRegisterTableModel(holding_registers)
         self.input_model = InputRegisterTableModel(input_registers)
@@ -53,6 +59,7 @@ class DeviceTab(QWidget):
         self._setup_register_tables()
         self._connect_signals()
         self._setup_plots()
+        self._run_worker()
 
     def _setup_register_tables(self) -> None:
         self.ui.holding_table_view.setModel(self.holding_model)
@@ -84,9 +91,8 @@ class DeviceTab(QWidget):
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Plottable
 
     def _connect_signals(self) -> None:
-        self.holding_model.write_requested.connect(self.on_holding_write_requested)
-
-        self.input_model.plot_enabled_changed.connect(self.on_plot_enabled_changed)
+        self.holding_model.write_requested.connect(self.holding_write_requested)
+        self.input_model.plot_enabled_changed.connect(self.plot_enabled_changed)
 
     def _setup_plots(self) -> None:
         """
@@ -102,7 +108,6 @@ class DeviceTab(QWidget):
         """
         labels = {
             "input": "Input registers",
-            # "holding": "Holding registers",
         }
 
         self._setup_single_plot(
@@ -110,12 +115,6 @@ class DeviceTab(QWidget):
             key="input",
             label=labels["input"],
         )
-
-        # self._setup_single_plot(
-        #     plot=self.ui.holding_plot_widget,
-        #     key="holding",
-        #     label=labels["holding"],
-        # )
 
     def _setup_single_plot(
         self,
@@ -127,24 +126,15 @@ class DeviceTab(QWidget):
         layout.setContentsMargins(10, 10, 10, 10)
 
         plot.setCentralItem(layout)
-        plot.setBackground("#f8f9fa")
+        plot.setBackground("#ffffff")
 
         layout.addLabel(label, angle=-90)
 
-        plot_item = layout.addPlot()
+        self.main_plot = layout.addPlot()
 
-        plot_0 = plot_item.plot(
-            [],
-            [],
-            pen=pg.mkPen({"color": "red", "width": 0.5}),
-            name="Channel 0",
-        )
-
-        self.lines_dict[key] = [plot_0]
-
-        plot_item.showAxis("right")
-        plot_item.showAxis("top")
-        plot_item.showGrid(x=True, y=True, alpha=0.2)
+        self.main_plot.showAxis("right")
+        self.main_plot.showAxis("top")
+        self.main_plot.showGrid(x=True, y=True, alpha=0.2)
 
         dashed_grey_pen = pg.mkPen(
             "grey",
@@ -152,68 +142,90 @@ class DeviceTab(QWidget):
             style=Qt.PenStyle.DashLine,
         )
 
-        plot_item.getAxis("bottom").setTickPen(dashed_grey_pen)
-        plot_item.getAxis("left").setTickPen(dashed_grey_pen)
+        self.main_plot.getAxis("bottom").setTickPen(dashed_grey_pen)
+        self.main_plot.getAxis("left").setTickPen(dashed_grey_pen)
 
         layout.nextRow()
         layout.addLabel("Time [s]", col=1)
 
-        viewbox = plot_item.getViewBox()
+        viewbox = self.main_plot.getViewBox()
         viewbox.setBorder(pg.mkPen({"color": "black", "width": 2}))
         viewbox.setBackgroundColor((255, 255, 255))
 
-    @Slot(object, object)
-    def on_holding_write_requested(self, register: object, value: object) -> None:
+    def _run_worker(self):
+        self.polling_thread = DevicePollingThread(
+            device=self.device,
+            refresh_rate_ms=self.ui.refresh_spinner.value(),
+        )
+        self.polling_thread.input_registers_updated.connect(self.update_input_registers)
+        self.polling_thread.holding_registers_updated.connect(self.update_holding_registers)
+        self.polling_thread.polling_failed.connect(self.on_device_polling_failed)
+        self.polling_thread.write_failed.connect(self.on_device_write_failed)
+        self.polling_thread.start()
+
+    def update_input_registers(
+        self,
+        elapsed_s: float,
+        data: dict[str, int],
+    ) -> None:
+        self.time_buffer.append(elapsed_s)
+        for register_name, value in data.items():
+            row_index = self.device.get_register_address(register_name)
+            self.input_model.update_value(row_index, value)
+            self.input_register_buffer[register_name].append(value)
+
+        self.update_plots()
+
+    def update_holding_registers(self, data: dict[str, int]):
+        for register_name, value in data.items():
+            row_index = self.device.get_register_address(register_name)
+            self.holding_model.update_value(row_index, value)
+
+    def on_device_polling_failed(self, error: str):
+        msg = f"{self.device.connection_info()}, poll failed: {error}"
+        self.main_widget.statusBar().showMessage(msg)
+
+    def on_device_write_failed(self, error: str):
+        msg = f"{self.device.connection_info()}, write failed: {error}"
+        self.main_widget.statusBar().showMessage(msg)
+
+    @Slot(int, str, int)
+    def holding_write_requested(self, register_id: int, register_name: str, new_value: int) -> None:
         """
         Called when the holding register table model requests a write.
 
         Keep this thin. Ideally forward the request to a worker/service layer,
         because direct Modbus I/O in the GUI thread is where apps go to die.
         """
-        # Example only:
-        # self.write_requested.emit(self.device, register, value)
-        #
-        # Or, if you really want to do it directly:
-        # self.device.write_register(register.name, value)
 
-        raise NotImplementedError
+        self.polling_thread.enqueue_write_command(register_id, register_name, new_value)
 
-    @Slot(object, bool)
-    def on_plot_enabled_changed(self, register: object, enabled: bool) -> None:
+    @Slot(str, bool)
+    def plot_enabled_changed(self, register_name: str, enabled: bool) -> None:
         """
         Called when a model row toggles plotting on/off.
         """
-        # Example:
-        # if enabled:
-        #     self._add_register_plot(register)
-        # else:
-        #     self._remove_register_plot(register)
+        if enabled:
+            if register_name not in self.plot_items:
+                color = (
+                    random.randint(128, 255),
+                    random.randint(128, 255),
+                    random.randint(128, 255),
+                )
 
-        raise NotImplementedError
+                plot = self.main_plot.plot(
+                    [],
+                    [],
+                    pen=pg.mkPen({"color": color, "width": 3.0}),
+                    name=register_name,
+                )
 
-    def update_register_tables(
-        self,
-        holding_rows: list[Any] | None = None,
-        input_rows: list[Any] | None = None,
-    ) -> None:
-        """
-        Update table model data from a fresh device snapshot.
+                self.plot_items[register_name] = plot
+            self.plot_items[register_name].show()
+        else:
+            self.plot_items[register_name].hide()
 
-        Exact method names depend on your table model implementation.
-        """
-        if holding_rows is not None:
-            self.holding_model.set_rows(holding_rows)
-
-        if input_rows is not None:
-            self.input_model.set_rows(input_rows)
-
-    def update_plot_data(
-        self,
-        key: str,
-        x: list[float],
-        y: list[float],
-        channel: int = 0,
-    ) -> None:
+    def update_plots(self) -> None:
         """
         Update one plotted line.
 
@@ -228,12 +240,8 @@ class DeviceTab(QWidget):
         channel:
             Line index inside self.lines_dict[key].
         """
-        if key not in self.lines_dict:
-            return
 
-        lines = self.lines_dict[key]
-
-        if channel >= len(lines):
-            return
-
-        lines[channel].setData(x, y)
+        registers_to_plot = self.input_model.plot_enabled_dict()
+        for register, enabled in registers_to_plot.items():
+            if enabled:
+                self.plot_items[register].setData(self.time_buffer.array(), self.input_register_buffer[register].array())

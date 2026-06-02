@@ -31,11 +31,11 @@ class DevicePollingThread(QThread):
     - stop cleanly when requested
     """
 
-    input_registers_updated = Signal(dict)
+    input_registers_updated = Signal(float, dict)
     holding_registers_updated = Signal(dict)
 
-    write_succeeded = Signal(object)
-    write_failed = Signal(object, str)
+    write_succeeded = Signal(str)
+    write_failed = Signal(str)
 
     polling_failed = Signal(str)
     stopped = Signal()
@@ -66,7 +66,7 @@ class DevicePollingThread(QThread):
             self.device,
             self.refresh_rate_ms,
         )
-
+        self._t0 = time.perf_counter()
         refresh_period_s = self.refresh_rate_ms / 1000.0
 
         try:
@@ -95,6 +95,9 @@ class DevicePollingThread(QThread):
 
         self._stop_event.set()
 
+    def update_refresh_rate(self, new_value_ms):
+        self.refresh_rate_ms = new_value_ms
+
     def enqueue_write_command(
         self,
         register_id: int,
@@ -107,6 +110,7 @@ class DevicePollingThread(QThread):
         Safe to call from the GUI thread.
         """
 
+        print("Registering command:", register_id, register_name, new_value)
         command = RegisterWriteCommand(
             register_id=register_id,
             register_name=register_name,
@@ -135,11 +139,15 @@ class DevicePollingThread(QThread):
                     "Write failed for register %s",
                     command.register_name,
                 )
-                self.write_failed.emit(command, str(exc))
+                msg = f"{command.register_name}: {str(exc)}"
+                self.write_failed.emit(msg)
             else:
-                self.write_succeeded.emit(command)
+                msg = f"{command.register_name}: OK"
+                self.write_succeeded.emit(msg)
             finally:
                 self._write_queue.task_done()
+            holding_values = self.device.get_all_holding_registers()
+            self.holding_registers_updated.emit(holding_values)
 
     def _execute_write(self, command: RegisterWriteCommand) -> None:
         """
@@ -157,17 +165,15 @@ class DevicePollingThread(QThread):
         """
         Poll device once and emit fresh data.
 
-        Adapt this method to your BaseModbusDevice API.
         """
 
         try:
+            t_elapsed = time.perf_counter() - self._t0
             input_values = self.device.get_all_input_registers()
-            holding_values = self.device.get_all_holding_registers()
 
         except Exception as exc:
             logger.exception("Polling failed for device %s", self.device)
             self.polling_failed.emit(str(exc))
             return
 
-        self.input_registers_updated.emit(input_values)
-        self.holding_registers_updated.emit(holding_values)
+        self.input_registers_updated.emit(t_elapsed, input_values)

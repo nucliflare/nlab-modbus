@@ -173,7 +173,7 @@ class BaseModbusDevice:
         result = {}
         for reg_name, spec in self.REGISTER_MAP.items():
             if spec.reg_type == RegisterType.HOLDING:
-                result[reg_name] = self.read(reg_name)
+                result[reg_name] = int(self.read(reg_name))
         return result
 
     def get_all_input_registers(self) -> dict:
@@ -204,3 +204,6 @@ class BaseModbusDevice:
             lines.append(f"{i}. {key}: {value}")
 
         return "\n".join(lines) + "\n"
+
+    def get_register_address(self, name):
+        return self.REGISTER_MAP[name].address

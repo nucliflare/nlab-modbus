@@ -86,7 +86,7 @@ class ModbusMainWindow(QMainWindow):
     def add_device_tab(self, device):
         if self.ui.devices_group.isHidden():
             self.ui.devices_group.show()
-        device_controller = DeviceTab(device)
+        device_controller = DeviceTab(device, self)
         self.ui.devices_tab.addTab(device_controller, device.connection_info())
 
     def on_scan_clicked(self) -> None:
