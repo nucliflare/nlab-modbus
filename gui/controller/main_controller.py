@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from controller.tab_controller import DeviceTab
 from generated.ui_main_window import Ui_MainWindow
-from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
@@ -46,27 +43,6 @@ class ModbusMainWindow(QMainWindow):
         self._setup_menu_bar()
         self._setup_status_bar()
         self._connect_signals()
-
-    def _load_ui(self, ui_path: Path) -> Any:
-        if not ui_path.exists():
-            raise FileNotFoundError(f"UI file not found: {ui_path}")
-
-        ui_file = QFile(str(ui_path))
-
-        if not ui_file.open(QIODevice.OpenModeFlag.ReadOnly):
-            raise RuntimeError(f"Could not open UI file: {ui_path}")
-
-        try:
-            loader = QUiLoader()
-            ui = loader.load(ui_file, self)
-
-            if ui is None:
-                raise RuntimeError(f"Could not load UI file: {ui_path}")
-
-            return ui
-
-        finally:
-            ui_file.close()
 
     def _setup_window(self) -> None:
         """

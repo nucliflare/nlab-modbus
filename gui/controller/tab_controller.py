@@ -7,8 +7,7 @@ import pyqtgraph as pg
 from generated.ui_device_tab import Ui_DeviceTab
 from model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, RegisterRow
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHeaderView, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 
@@ -51,50 +50,38 @@ class DeviceTab(QWidget):
 
         self.lines_dict: dict[str, list[pg.PlotDataItem]] = {}
 
-        self._setup_layout()
         self._setup_register_tables()
         self._connect_signals()
         self._setup_plots()
-
-    def _load_ui(self, ui_file: Path) -> QWidget:
-        loader = QUiLoader()
-
-        loader.registerCustomWidget(pg.PlotWidget)
-        loader.registerCustomWidget(pg.GraphicsView)
-        ui_file = ui_file.resolve()
-        if not ui_file.exists():
-            raise FileNotFoundError(f"UI file not found: {ui_file}")
-
-        widget = loader.load(str(ui_file), self)
-        if widget is None:
-            raise RuntimeError(f"Failed to load UI file: {ui_file}")
-
-        return widget
-
-    def _setup_layout(self) -> None:
-        """
-        Put loaded .ui widget inside this QWidget.
-
-        If your .ui file's top-level widget is already intended to be this
-        widget, you can also use loadUi-style approaches instead. With
-        QUiLoader, wrapping it into this widget is usually cleaner.
-        """
-
-        # layout = QVBoxLayout(self)
-        # layout.setContentsMargins(0, 0, 0, 0)
-        # layout.addWidget(self.ui)
-
-        self.ui.type_edit.setText(self.device.device_type.name)
 
     def _setup_register_tables(self) -> None:
         self.ui.holding_table_view.setModel(self.holding_model)
         self.ui.input_table_view.setModel(self.input_model)
 
-        self.ui.holding_table_view.resizeColumnsToContents()
-        self.ui.input_table_view.resizeColumnsToContents()
+        for table in (
+            self.ui.holding_table_view,
+            self.ui.input_table_view,
+        ):
+            table.setAlternatingRowColors(True)
+        self._configure_input_table()
+        self._configure_holding_table()
 
-        self.ui.holding_table_view.setAlternatingRowColors(True)
-        self.ui.input_table_view.setAlternatingRowColors(True)
+    def _configure_holding_table(self) -> None:
+        table = self.ui.holding_table_view
+        header = table.horizontalHeader()
+
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # ID
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Register
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # Value
+
+    def _configure_input_table(self) -> None:
+        table = self.ui.input_table_view
+        header = table.horizontalHeader()
+
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # ID
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Register
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # Value
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Plottable
 
     def _connect_signals(self) -> None:
         self.holding_model.write_requested.connect(self.on_holding_write_requested)
