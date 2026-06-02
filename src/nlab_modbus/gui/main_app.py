@@ -3,10 +3,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from controller.main_controller import ModbusMainWindow
 from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QApplication
+
+from nlab_modbus.gui.controller.main_controller import ModbusMainWindow
 
 BASE_DIR = Path(__file__).resolve().parent
 UI_PATH = BASE_DIR / "view" / "main_window.ui"

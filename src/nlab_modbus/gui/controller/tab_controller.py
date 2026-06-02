@@ -4,12 +4,12 @@ from pathlib import Path
 from typing import Any
 
 import pyqtgraph as pg
-from generated.ui_device_tab import Ui_DeviceTab
-from model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, RegisterRow
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QHeaderView, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
+from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
+from nlab_modbus.gui.model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, RegisterRow
 
 
 class DeviceTab(QWidget):

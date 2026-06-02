@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from controller.tab_controller import DeviceTab
-from generated.ui_main_window import Ui_MainWindow
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -14,10 +12,11 @@ from PySide6.QtWidgets import (
 
 from nlab_modbus.core.enums import DeviceType
 from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_boards, scan_remote_modbus_devices
-from nlab_modbus.manager import DeviceManager
+from nlab_modbus.gui.controller.tab_controller import DeviceTab
+from nlab_modbus.gui.generated.ui_main_window import Ui_MainWindow
+from nlab_modbus.services.manager import DeviceManager
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-MAIN_WINDOW_UI = PROJECT_ROOT / "view" / "main_window.ui"
 APP_ICON = PROJECT_ROOT / "resources" / "ewt.ico"
 
 
