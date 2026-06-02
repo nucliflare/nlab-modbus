@@ -70,6 +70,14 @@ class ModbusMainWindow(QMainWindow):
         self.ui.host_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.remote_port_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.local_btn.clicked.connect(self.on_connect_local_clicked)
+        self.ui.remote_btn.clicked.connect(self.on_connect_remote_clicked)
+
+    def on_connect_remote_clicked(self) -> None:
+        host = self.ui.host_select.currentText()
+        port = self.ui.remote_port_select.currentText()
+        device_id, device_type = self.ui.remote_select.currentText().split()
+        device = self.manager.connect_remote(host, int(port), int(device_id), DeviceType[device_type])
+        self.add_device_tab(device)
 
     def on_connect_local_clicked(self) -> None:
         """

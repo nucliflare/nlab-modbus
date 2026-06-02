@@ -110,6 +110,24 @@ class DeviceManager:
             self.local.append(device)
         return device
 
+    def connect_remote(
+        self,
+        host: str,
+        port: int,
+        device_id: int,
+        device_type: DeviceType,
+    ):
+        client = ModbusTcpClient(
+            host=host,
+            port=port,
+            framer=FramerType.RTU,
+            timeout=0.15,
+        )
+
+        device = create_device(client, device_id, device_type)
+        self.remote.append(device)
+        return device
+
     def scan_remote(self, host: str, ports: int | list):
         """Scan a remote host on specified port(s) for Modbus devices and add them to the remote collection.
 
