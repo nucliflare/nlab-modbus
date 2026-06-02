@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pyqtgraph as pg
+from generated.ui_device_tab import Ui_DeviceTab
 from model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, RegisterRow
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtUiTools import QUiLoader
@@ -39,7 +40,9 @@ class DeviceTab(QWidget):
 
         self.device = device
 
-        self.ui = self._load_ui(self.TAB_UI)
+        # self.ui = self._load_ui(self.TAB_UI)
+        self.ui = Ui_DeviceTab()
+        self.ui.setupUi(self)
 
         input_registers = [RegisterRow(i, *pair) for i, pair in enumerate(self.device.get_all_input_registers().items())]
         holding_registers = [RegisterRow(i, *pair) for i, pair in enumerate(self.device.get_all_holding_registers().items())]
@@ -77,9 +80,9 @@ class DeviceTab(QWidget):
         QUiLoader, wrapping it into this widget is usually cleaner.
         """
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.ui)
+        # layout = QVBoxLayout(self)
+        # layout.setContentsMargins(0, 0, 0, 0)
+        # layout.addWidget(self.ui)
 
         self.ui.type_edit.setText(self.device.device_type.name)
 

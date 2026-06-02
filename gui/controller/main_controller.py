@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from controller.tab_controller import DeviceTab
+from generated.ui_main_window import Ui_MainWindow
 from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtUiTools import QUiLoader
@@ -27,7 +28,14 @@ class ModbusMainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self.ui = self._load_ui(MAIN_WINDOW_UI)
+        # self.ui = self._load_ui(MAIN_WINDOW_UI)
+        self.central = QWidget(self)
+
+        self.ui = Ui_MainWindow()
+
+        self.ui.setupUi(self.central)
+        self.setCentralWidget(self.central)
+
         self.available_devices = {
             "local": {},
             "remote": {},
@@ -67,7 +75,7 @@ class ModbusMainWindow(QMainWindow):
 
         self.setWindowTitle("Modbus Monitor")
         # self.resize(1100, 750)
-        self.setCentralWidget(self.ui)
+        # self.setCentralWidget(self.ui)
         self.ui.devices_group.hide()
 
         if APP_ICON.exists():
@@ -104,7 +112,7 @@ class ModbusMainWindow(QMainWindow):
         if self.ui.devices_group.isHidden():
             self.ui.devices_group.show()
         device_controller = DeviceTab(device)
-        self.ui.devices_tab.addTab(device_controller.ui, device.connection_info())
+        self.ui.devices_tab.addTab(device_controller, device.connection_info())
 
     def on_scan_clicked(self) -> None:
         """
