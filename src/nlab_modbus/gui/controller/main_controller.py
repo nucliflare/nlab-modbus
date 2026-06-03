@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
 from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_boards, scan_remote_modbus_devices
 from nlab_modbus.gui.controller.tab_controller import DeviceTab
@@ -37,7 +38,7 @@ class ModbusMainWindow(QMainWindow):
             "remote": {},
         }
         self.manager = DeviceManager()
-
+        self._open_devices: dict[BaseModbusDevice, DeviceTab] = {}
         self._setup_window()
         self._setup_menu_bar()
         self._setup_status_bar()
@@ -94,8 +95,16 @@ class ModbusMainWindow(QMainWindow):
     def add_device_tab(self, device):
         if self.ui.devices_group.isHidden():
             self.ui.devices_group.show()
-        device_controller = DeviceTab(device, self)
-        self.ui.devices_tab.addTab(device_controller, device.connection_info())
+        # device_controller = DeviceTab(device, self)
+        # self.ui.devices_tab.addTab(device_controller, device.connection_info())
+
+        if device not in self._open_devices:
+            tab = DeviceTab(device, self)
+            self.ui.devices_tab.addTab(tab, device.connection_info())
+            self._open_devices[device] = tab
+        else:
+            self.ui.devices_tab.setCurrentWidget(self._open_devices[device])
+            QMessageBox.information(self, "Device Already Connected", f"The device '{device.connection_info()}' is already connected.")
 
     def on_scan_clicked(self) -> None:
         """

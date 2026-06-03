@@ -56,6 +56,7 @@ class DeviceManager:
         self.remote: list[BaseModbusDevice] = []
         self._handles: dict[tuple, _ClientHandle] = {}  # transport key -> handle
         self._registry_lock = threading.Lock()  # protects _handles + device lists
+        self._devices_by_key: dict[tuple, BaseModbusDevice] = {}
 
     # ---- handle / client lifecycle -------------------------------------
 
@@ -100,18 +101,16 @@ class DeviceManager:
             self._handles[key] = handle
         return handle
 
-    def _attach(
-        self,
-        handle: _ClientHandle,
-        device_id: int,
-        device_type: DeviceType,
-        collection: list[BaseModbusDevice],
-    ) -> BaseModbusDevice:
+    def _attach(self, handle, device_id, device_type, collection):
+        key = (handle.key, device_id)  # e.g. (("serial", "COM3"), 4)
+        existing = self._devices_by_key.get(key)
+        if existing is not None:
+            return existing  # genuinely the same object, every time
         device = create_device(handle.client, device_id, device_type)
-        device.bus_lock = handle.lock  # the critical wiring
-        if device not in collection:
-            collection.append(device)
-            handle.acquire_ref()
+        device.bus_lock = handle.lock
+        self._devices_by_key[key] = device
+        collection.append(device)
+        handle.acquire_ref()
         return device
 
     # ---- views ----------------------------------------------------------
