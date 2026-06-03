@@ -1,4 +1,6 @@
 import asyncio
+import threading
+from contextlib import contextmanager
 from typing import Iterable
 
 from pymodbus.client import ModbusSerialClient, ModbusTcpClient
@@ -7,40 +9,124 @@ from pymodbus.framer import FramerType
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
 from nlab_modbus.discovery.factory import create_device
-from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_boards, scan_remote_modbus_devices
+from nlab_modbus.discovery.scan import (
+    scan_local_modbus_devices,
+    scan_remote_boards,
+    scan_remote_modbus_devices,
+)
+
+
+class _ClientHandle:
+    """Owns one Modbus client and the lock serializing access to it.
+
+    Every device sharing a transport (one serial bus, or one TCP socket)
+    shares one handle, hence one RLock. Concurrency is serialized per-bus:
+    distinct buses run in parallel from separate threads, devices on the same
+    bus never interleave frames.
+    """
+
+    __slots__ = ("client", "lock", "key", "_refcount")
+
+    def __init__(self, client, key: tuple):
+        self.client = client
+        self.key = key
+        self.lock = threading.RLock()
+        self._refcount = 0
+
+    def acquire_ref(self) -> None:
+        self._refcount += 1
+
+    def release_ref(self) -> int:
+        self._refcount -= 1
+        return self._refcount
 
 
 class DeviceManager:
-    """Manages discovered local and remote Modbus devices.
+    """Manages discovered local and remote Modbus devices with per-bus
+    concurrency control.
 
-    Provides functionality to scan for Modbus devices on local serial ports
-    and remote TCP connections, organize them by type, and manage their lifecycle.
+    Devices sharing a transport (same serial port, or same host:port) share a
+    single client and a single lock. The lock is injected into each device as
+    ``device.bus_lock`` so every Modbus transaction serializes against others
+    on the same bus, while distinct buses remain free to run concurrently.
     """
 
     def __init__(self):
-        """Initialize an empty DeviceManager with no discovered devices."""
         self.local: list[BaseModbusDevice] = []
         self.remote: list[BaseModbusDevice] = []
+        self._handles: dict[tuple, _ClientHandle] = {}  # transport key -> handle
+        self._registry_lock = threading.Lock()  # protects _handles + device lists
+
+    # ---- handle / client lifecycle -------------------------------------
+
+    def _get_or_create_serial_handle(
+        self,
+        port: str,
+        baudrate: int = 115200,
+        bytesize: int = 8,
+        parity: str = "N",
+        stopbits: int = 1,
+        timeout: float = 0.15,
+        retries: int = 0,
+    ) -> _ClientHandle:
+        key = ("serial", port)
+        handle = self._handles.get(key)
+        if handle is None:
+            client = ModbusSerialClient(
+                port=port,
+                framer=FramerType.RTU,
+                baudrate=baudrate,
+                bytesize=bytesize,
+                parity=parity,
+                stopbits=stopbits,
+                timeout=timeout,
+                retries=retries,
+            )
+            handle = _ClientHandle(client, key)
+            self._handles[key] = handle
+        return handle
+
+    def _get_or_create_tcp_handle(self, host: str, port: int) -> _ClientHandle:
+        key = ("tcp", host, port)
+        handle = self._handles.get(key)
+        if handle is None:
+            client = ModbusTcpClient(
+                host=host,
+                port=port,
+                framer=FramerType.RTU,
+                timeout=0.15,
+            )
+            handle = _ClientHandle(client, key)
+            self._handles[key] = handle
+        return handle
+
+    def _attach(
+        self,
+        handle: _ClientHandle,
+        device_id: int,
+        device_type: DeviceType,
+        collection: list[BaseModbusDevice],
+    ) -> BaseModbusDevice:
+        device = create_device(handle.client, device_id, device_type)
+        device.bus_lock = handle.lock  # the critical wiring
+        if device not in collection:
+            collection.append(device)
+            handle.acquire_ref()
+        return device
+
+    # ---- views ----------------------------------------------------------
 
     @property
     def all_devices(self) -> list[BaseModbusDevice]:
-        """Return a combined list of all local and remote devices.
-
-        Returns:
-            A list containing all devices from both local and remote collections.
-        """
         return [*self.local, *self.remote]
 
     def by_type(self, device_type: DeviceType) -> list[BaseModbusDevice]:
-        """Filter devices by their device type.
+        return [d for d in self.all_devices if d.device_type == device_type]
 
-        Args:
-            device_type: The type of device to filter by.
+    def get_all_devices(self):
+        return [*self.local, *self.remote]
 
-        Returns:
-            A list of devices matching the specified device type.
-        """
-        return [device for device in self.all_devices if device.device_type == device_type]
+    # ---- local ----------------------------------------------------------
 
     def scan_local_ports(
         self,
@@ -52,38 +138,25 @@ class DeviceManager:
         timeout: float = 0.25,
         retries: int = 0,
     ):
-        """Scan local serial ports for Modbus devices and add them to the local collection.
-
-        Args:
-            device_ids: Range of device IDs to scan for. Defaults to 1-16.
-            baudrate: Serial communication baud rate. Defaults to 115200.
-            bytesize: Number of data bits. Defaults to 8.
-            parity: Parity setting ('N', 'E', 'O'). Defaults to 'N'.
-            stopbits: Number of stop bits. Defaults to 1.
-            timeout: Timeout in seconds for each scan attempt. Defaults to 0.25.
-            retries: Number of retry attempts per scan. Defaults to 1.
-        """
         found_local = scan_local_modbus_devices(
-            device_ids=device_ids, baudrate=baudrate, bytesize=bytesize, parity=parity, stopbits=stopbits, timeout=timeout, retries=retries
+            device_ids=device_ids,
+            baudrate=baudrate,
+            bytesize=bytesize,
+            parity=parity,
+            stopbits=stopbits,
+            timeout=timeout,
+            retries=retries,
         )
-        # print(found_local)
-        ports = list({item["port"] for item in found_local})
-
-        for port in ports:
-            client = ModbusSerialClient(
-                port=port,
-                framer=FramerType.RTU,
-                baudrate=115200,
-                bytesize=8,
-                parity="N",
-                stopbits=1,
-                timeout=0.15,
-                retries=0,
-            )
-            for parameters in found_local:
-                if parameters["port"] == port:
-                    device = create_device(client, parameters["device_id"], parameters["type"])
-                    self.local.append(device)
+        with self._registry_lock:
+            for params in found_local:
+                handle = self._get_or_create_serial_handle(
+                    params["port"],
+                    baudrate=baudrate,
+                    bytesize=bytesize,
+                    parity=parity,
+                    stopbits=stopbits,
+                )
+                self._attach(handle, params["device_id"], params["type"], self.local)
 
     def connect_local(
         self,
@@ -95,88 +168,63 @@ class DeviceManager:
         stopbits: int = 1,
         bytesize: int = 8,
     ):
-        client = ModbusSerialClient(
-            port=port,
-            framer=FramerType.RTU,
-            baudrate=baudrate,
-            bytesize=bytesize,
-            parity=parity,
-            stopbits=stopbits,
-            timeout=0.15,
-            retries=0,
-        )
-        device = create_device(client, device_id, device_type)
-        if device not in self.local:
-            self.local.append(device)
-        return device
+        with self._registry_lock:
+            handle = self._get_or_create_serial_handle(port, baudrate=baudrate, parity=parity, stopbits=stopbits, bytesize=bytesize)
+            return self._attach(handle, device_id, device_type, self.local)
 
-    def connect_remote(
-        self,
-        host: str,
-        port: int,
-        device_id: int,
-        device_type: DeviceType,
-    ):
-        client = ModbusTcpClient(
-            host=host,
-            port=port,
-            framer=FramerType.RTU,
-            timeout=0.15,
-        )
+    # ---- remote ---------------------------------------------------------
 
-        device = create_device(client, device_id, device_type)
-        self.remote.append(device)
-        return device
+    def connect_remote(self, host: str, port: int, device_id: int, device_type: DeviceType):
+        with self._registry_lock:
+            handle = self._get_or_create_tcp_handle(host, port)
+            return self._attach(handle, device_id, device_type, self.remote)
 
     def scan_remote(self, host: str, ports: int | list):
-        """Scan a remote host on specified port(s) for Modbus devices and add them to the remote collection.
-
-        Args:
-            host: The IP address or hostname of the remote device.
-            ports: A single port number or list of port numbers to scan.
-        """
         if isinstance(ports, int):
             ports = [ports]
-
         for port in ports:
-            found_remote = scan_remote_modbus_devices(host, port)
-            for parameters in found_remote:
-                client = ModbusTcpClient(
-                    host=host,
-                    port=port,
-                    framer=FramerType.RTU,
-                    timeout=0.15,
-                )
-                device = create_device(client, parameters["device_id"], parameters["type"])
-                self.remote.append(device)
+            found = scan_remote_modbus_devices(host, port)
+            with self._registry_lock:
+                for params in found:
+                    handle = self._get_or_create_tcp_handle(host, port)
+                    self._attach(handle, params["device_id"], params["type"], self.remote)
 
     def scan_remote_ips(self, name="nucliflare"):
-        """Sync-callable everywhere. Returns dict directly."""
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            running_loop = False
-        else:
-            running_loop = True
-
-        if running_loop:
-            # Jupyter or qasync: can't block; caller should use the async variant.
-            raise RuntimeError("Running loop detected — use `await self.scan_remote_ips_async(name)`.")
-        # plain script / Qt worker thread: no loop, just run it
-        return scan_remote_boards(name_filter=name)
+            return scan_remote_boards(name_filter=name)
+        raise RuntimeError("Running loop detected — use `await self.scan_remote_ips_async(name)`.")
 
     async def scan_remote_ips_async(self, name="nucliflare"):
         return await asyncio.to_thread(scan_remote_boards, name_filter=name)
 
-    def get_all_devices(self):
-        """Return a combined list of all managed devices.
+    # ---- teardown -------------------------------------------------------
 
-        Returns:
-            A list containing all local and remote Modbus devices.
-        """
-        return [*self.local, *self.remote]
+    def disconnect(self, device: BaseModbusDevice) -> None:
+        """Remove one device; close its client only when the last device on
+        that bus is gone (refcount hits zero)."""
+        with self._registry_lock:
+            for collection in (self.local, self.remote):
+                if device in collection:
+                    collection.remove(device)
+                    break
+            else:
+                return
+            # find the handle this device belonged to
+            for handle in self._handles.values():
+                if handle.lock is device.bus_lock:
+                    if handle.release_ref() <= 0:
+                        with handle.lock:
+                            handle.client.close()
+                        self._handles.pop(handle.key, None)
+                    break
 
     def close_all(self):
-        """Close connections for all managed devices."""
-        for device in self.get_all_devices():
-            device.close()
+        with self._registry_lock:
+            for handle in self._handles.values():
+                with handle.lock:
+                    handle.client.close()
+            self._handles.clear()
+            self.local.clear()
+            self.remote.clear()
