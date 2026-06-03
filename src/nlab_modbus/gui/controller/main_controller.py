@@ -18,14 +18,12 @@ from nlab_modbus.gui.generated.ui_main_window import Ui_MainWindow
 from nlab_modbus.services.manager import DeviceManager
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-APP_ICON = PROJECT_ROOT / "resources" / "ewt.ico"
 
 
 class ModbusMainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        # self.ui = self._load_ui(MAIN_WINDOW_UI)
         self.central = QWidget(self)
 
         self.ui = Ui_MainWindow()
@@ -53,11 +51,6 @@ class ModbusMainWindow(QMainWindow):
         # self.resize(1100, 750)
         # self.setCentralWidget(self.ui)
         self.ui.devices_group.hide()
-
-        if APP_ICON.exists():
-            self.setWindowIcon(QIcon(str(APP_ICON)))
-        else:
-            raise FileNotFoundError(f"Application icon not found: {APP_ICON}")
         self.scan_for_available_devices()
 
     def _connect_signals(self) -> None:

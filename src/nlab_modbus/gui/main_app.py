@@ -1,46 +1,32 @@
 from __future__ import annotations
 
+import ctypes
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QFile, QIODevice
-from PySide6.QtUiTools import QUiLoader
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from nlab_modbus.gui.controller.main_controller import ModbusMainWindow
 
-BASE_DIR = Path(__file__).resolve().parent
-UI_PATH = BASE_DIR / "view" / "main_window.ui"
-
-
-def load_ui(ui_path: Path):
-    if not ui_path.exists():
-        raise FileNotFoundError(f"UI file not found: {ui_path}")
-
-    ui_file = QFile(str(ui_path))
-
-    if not ui_file.open(QIODevice.OpenModeFlag.ReadOnly):
-        raise RuntimeError(f"Could not open UI file: {ui_path}")
-
-    try:
-        loader = QUiLoader()
-        widget = loader.load(ui_file)
-
-        if widget is None:
-            raise RuntimeError(f"Could not load UI file: {ui_path}")
-
-        return widget
-
-    finally:
-        ui_file.close()
+PROJECT_ROOT = Path(__file__).resolve().parent
+APP_ICON = PROJECT_ROOT / "resources" / "ewt.ico"
 
 
 def main() -> int:
+
+    if sys.platform == "win32":
+        myappid = "EWT.Modbus.Monitor.0.3.0"  # arbitrary but unique
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     app = QApplication(sys.argv)
 
     window = ModbusMainWindow()
     window.show()
 
+    if APP_ICON.exists():
+        app.setWindowIcon(QIcon(str(APP_ICON)))
+    else:
+        raise FileNotFoundError(f"Application icon not found: {APP_ICON}")
     return app.exec()
 
 

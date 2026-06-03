@@ -151,6 +151,10 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout.addWidget(self.groupBox_2)
 
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer)
+
 
         self.verticalLayout_2.addLayout(self.horizontalLayout)
 
