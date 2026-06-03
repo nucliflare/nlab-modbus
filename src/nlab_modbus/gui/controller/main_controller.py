@@ -58,7 +58,7 @@ class ModbusMainWindow(QMainWindow):
             self.setWindowIcon(QIcon(str(APP_ICON)))
         else:
             raise FileNotFoundError(f"Application icon not found: {APP_ICON}")
-        self.scan_local_ports()
+        self.scan_for_available_devices()
 
     def _connect_signals(self) -> None:
         """
@@ -66,7 +66,7 @@ class ModbusMainWindow(QMainWindow):
         """
         self.action_about.triggered.connect(self.on_about_clicked)
         self.action_licenses.triggered.connect(self.on_licenses_clicked)
-        self.action_scan_local_ports.triggered.connect(self.scan_local_ports)
+        self.action_scan_for_available_devices.triggered.connect(self.scan_for_available_devices)
         self.ui.port_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.host_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.remote_port_select.currentIndexChanged.connect(self._update_comboboxes)
@@ -95,8 +95,6 @@ class ModbusMainWindow(QMainWindow):
     def add_device_tab(self, device):
         if self.ui.devices_group.isHidden():
             self.ui.devices_group.show()
-        # device_controller = DeviceTab(device, self)
-        # self.ui.devices_tab.addTab(device_controller, device.connection_info())
 
         if device not in self._open_devices:
             tab = DeviceTab(device, self)
@@ -124,8 +122,8 @@ class ModbusMainWindow(QMainWindow):
         self.action_exit.setShortcut("Ctrl+Q")
         file_menu.addAction(self.action_exit)
 
-        self.action_scan_local_ports = QAction("Scan for local ports")
-        connection_menu.addAction(self.action_scan_local_ports)
+        self.action_scan_for_available_devices = QAction("Scan for available devices")
+        connection_menu.addAction(self.action_scan_for_available_devices)
 
         self.action_clear_plot = QAction("&Clear Plot", self)
         view_menu.addAction(self.action_clear_plot)
@@ -141,7 +139,7 @@ class ModbusMainWindow(QMainWindow):
 
         self.statusBar().showMessage("Ready")
 
-    def scan_local_ports(self) -> None:
+    def scan_for_available_devices(self) -> None:
         """Scan for available local COM ports"""
         local_devices = scan_local_modbus_devices()
         self.ui.port_select.clear()
