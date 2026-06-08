@@ -23,16 +23,9 @@
        </property>
        <layout class="QGridLayout" name="gridLayout">
         <item row="2" column="2">
-         <widget class="QPushButton" name="pushButton_3">
+         <widget class="QPushButton" name="clear_plot_btn">
           <property name="text">
            <string>Clear plot</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QPushButton" name="pushButton">
-          <property name="text">
-           <string>Connect</string>
           </property>
          </widget>
         </item>
@@ -56,13 +49,6 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="0">
-         <widget class="QPushButton" name="pushButton_2">
-          <property name="text">
-           <string>Disconnect</string>
-          </property>
-         </widget>
-        </item>
         <item row="0" column="0">
          <widget class="QLabel" name="label">
           <property name="text">
@@ -74,6 +60,13 @@
          <widget class="QLabel" name="label_3">
           <property name="text">
            <string>Refresh rate (ms)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="2">
+         <widget class="QPushButton" name="tab_disconnect_btn">
+          <property name="text">
+           <string>Disconnect</string>
           </property>
          </widget>
         </item>

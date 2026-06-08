@@ -164,11 +164,11 @@ class Ui_MainWindow(object):
         self.devices_group.setFlat(False)
         self.verticalLayout = QVBoxLayout(self.devices_group)
         self.verticalLayout.setObjectName(u"verticalLayout")
-        self.devices_tab = QTabWidget(self.devices_group)
-        self.devices_tab.setObjectName(u"devices_tab")
-        self.devices_tab.setTabPosition(QTabWidget.TabPosition.West)
+        self.device_tabs = QTabWidget(self.devices_group)
+        self.device_tabs.setObjectName(u"device_tabs")
+        self.device_tabs.setTabPosition(QTabWidget.TabPosition.West)
 
-        self.verticalLayout.addWidget(self.devices_tab)
+        self.verticalLayout.addWidget(self.device_tabs)
 
 
         self.verticalLayout_2.addWidget(self.devices_group)

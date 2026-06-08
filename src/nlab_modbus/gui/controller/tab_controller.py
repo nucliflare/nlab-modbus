@@ -4,7 +4,7 @@ import random
 
 import pyqtgraph as pg
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QHeaderView, QMainWindow, QWidget
+from PySide6.QtWidgets import QHeaderView, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
@@ -31,7 +31,7 @@ class DeviceTab(QWidget):
     def __init__(
         self,
         device: BaseModbusDevice,
-        parent: QMainWindow,
+        parent: ModbusMainWindow,
     ) -> None:
         super().__init__(parent)
 
@@ -93,6 +93,7 @@ class DeviceTab(QWidget):
     def _connect_signals(self) -> None:
         self.holding_model.write_requested.connect(self.holding_write_requested)
         self.input_model.plot_enabled_changed.connect(self.plot_enabled_changed)
+        self.ui.tab_disconnect_btn.clicked.connect(self.close_tab)
 
     def _setup_plots(self) -> None:
         """
@@ -250,3 +251,14 @@ class DeviceTab(QWidget):
         if self.polling_thread:
             self.polling_thread.stop()
             self.polling_thread.wait(2000)
+
+    def close_tab(self):
+        index = self.main_widget.ui.device_tabs.indexOf(self)
+        if index == -1:
+            return
+        self.main_widget.ui.device_tabs.removeTab(index)
+        self.main_widget._open_devices.pop(self.device, None)
+        self.main_widget.hide_tabs()
+        self.deleteLater()
+        self.close()
+        self.deleteLater()

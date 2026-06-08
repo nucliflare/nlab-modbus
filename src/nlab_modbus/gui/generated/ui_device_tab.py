@@ -35,15 +35,10 @@ class Ui_DeviceTab(object):
         self.groupBox_3.setObjectName(u"groupBox_3")
         self.gridLayout = QGridLayout(self.groupBox_3)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.pushButton_3 = QPushButton(self.groupBox_3)
-        self.pushButton_3.setObjectName(u"pushButton_3")
+        self.clear_plot_btn = QPushButton(self.groupBox_3)
+        self.clear_plot_btn.setObjectName(u"clear_plot_btn")
 
-        self.gridLayout.addWidget(self.pushButton_3, 2, 2, 1, 1)
-
-        self.pushButton = QPushButton(self.groupBox_3)
-        self.pushButton.setObjectName(u"pushButton")
-
-        self.gridLayout.addWidget(self.pushButton, 2, 0, 1, 1)
+        self.gridLayout.addWidget(self.clear_plot_btn, 2, 2, 1, 1)
 
         self.type_edit = QLineEdit(self.groupBox_3)
         self.type_edit.setObjectName(u"type_edit")
@@ -59,11 +54,6 @@ class Ui_DeviceTab(object):
 
         self.gridLayout.addWidget(self.refresh_spinner, 1, 2, 1, 1)
 
-        self.pushButton_2 = QPushButton(self.groupBox_3)
-        self.pushButton_2.setObjectName(u"pushButton_2")
-
-        self.gridLayout.addWidget(self.pushButton_2, 4, 0, 1, 1)
-
         self.label = QLabel(self.groupBox_3)
         self.label.setObjectName(u"label")
 
@@ -73,6 +63,11 @@ class Ui_DeviceTab(object):
         self.label_3.setObjectName(u"label_3")
 
         self.gridLayout.addWidget(self.label_3, 1, 0, 1, 1)
+
+        self.tab_disconnect_btn = QPushButton(self.groupBox_3)
+        self.tab_disconnect_btn.setObjectName(u"tab_disconnect_btn")
+
+        self.gridLayout.addWidget(self.tab_disconnect_btn, 3, 2, 1, 1)
 
 
         self.verticalLayout.addWidget(self.groupBox_3)
@@ -129,11 +124,10 @@ class Ui_DeviceTab(object):
     def retranslateUi(self, DeviceTab):
         DeviceTab.setWindowTitle(QCoreApplication.translate("DeviceTab", u"Form", None))
         self.groupBox_3.setTitle(QCoreApplication.translate("DeviceTab", u"Device", None))
-        self.pushButton_3.setText(QCoreApplication.translate("DeviceTab", u"Clear plot", None))
-        self.pushButton.setText(QCoreApplication.translate("DeviceTab", u"Connect", None))
-        self.pushButton_2.setText(QCoreApplication.translate("DeviceTab", u"Disconnect", None))
+        self.clear_plot_btn.setText(QCoreApplication.translate("DeviceTab", u"Clear plot", None))
         self.label.setText(QCoreApplication.translate("DeviceTab", u"Type", None))
         self.label_3.setText(QCoreApplication.translate("DeviceTab", u"Refresh rate (ms)", None))
+        self.tab_disconnect_btn.setText(QCoreApplication.translate("DeviceTab", u"Disconnect", None))
         self.groupBox.setTitle(QCoreApplication.translate("DeviceTab", u"Holding registers (R/W)", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("DeviceTab", u"Input registers (R)", None))
     # retranslateUi

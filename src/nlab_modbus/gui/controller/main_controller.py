@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
@@ -92,10 +93,10 @@ class ModbusMainWindow(QMainWindow):
 
         if device not in self._open_devices:
             tab = DeviceTab(device, self)
-            self.ui.devices_tab.addTab(tab, device.connection_info())
+            self.ui.device_tabs.addTab(tab, device.connection_info())
             self._open_devices[device] = tab
         else:
-            self.ui.devices_tab.setCurrentWidget(self._open_devices[device])
+            self.ui.device_tabs.setCurrentWidget(self._open_devices[device])
             QMessageBox.information(self, "Device Already Connected", f"The device '{device.connection_info()}' is already connected.")
 
     def on_scan_clicked(self) -> None:
@@ -211,3 +212,8 @@ class ModbusMainWindow(QMainWindow):
             device_tab.close()
         self.manager.close_all()
         super().closeEvent(event)
+
+    def hide_tabs(self):
+        if self.ui.device_tabs.count() == 0:
+            self.ui.devices_group.hide()
+            QTimer.singleShot(0, self.adjustSize)

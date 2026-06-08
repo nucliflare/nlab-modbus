@@ -232,7 +232,7 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
-       <widget class="QTabWidget" name="devices_tab">
+       <widget class="QTabWidget" name="device_tabs">
         <property name="tabPosition">
          <enum>QTabWidget::TabPosition::West</enum>
         </property>
