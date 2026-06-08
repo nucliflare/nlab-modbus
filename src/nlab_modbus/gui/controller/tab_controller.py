@@ -245,3 +245,8 @@ class DeviceTab(QWidget):
         for register, enabled in registers_to_plot.items():
             if enabled:
                 self.plot_items[register].setData(self.time_buffer.array(), self.input_register_buffer[register].array())
+
+    def close(self):
+        if self.polling_thread:
+            self.polling_thread.stop()
+            self.polling_thread.wait(2000)

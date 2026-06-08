@@ -45,7 +45,7 @@ GEIGER_REGISTER_MAP = {
     "board_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=10, dtype="int16", min=-32768, max=32767, unit="*C", scale=0.01),
     "eeprom_error": RegisterSpec(reg_type=RegisterType.INPUT, address=11, dtype="uint16", min=0, max=2),
     "supply_voltage": RegisterSpec(reg_type=RegisterType.INPUT, address=12, dtype="uint16", min=0, max=65535, unit="V", scale=0.01),
-    "hv_voltage": RegisterSpec(reg_type=RegisterType.INPUT, address=13, dtype="uint16", min=0, max=65535, unit="V", scale=0.01),
+    "hv_voltage": RegisterSpec(reg_type=RegisterType.INPUT, address=13, dtype="uint16", min=0, max=65535, unit="V"),
     "pulse_integer": RegisterSpec(reg_type=RegisterType.INPUT, address=14, dtype="int16", min=-32768, max=32767, unit="mV"),
     "gm_supply_fault": RegisterSpec(reg_type=RegisterType.INPUT, address=15, dtype="uint16", min=0, max=1),
     "pwm_duty": RegisterSpec(reg_type=RegisterType.INPUT, address=16, dtype="uint16", min=0, max=1000, scale=0.1, unit="%"),

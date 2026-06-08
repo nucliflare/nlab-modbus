@@ -60,6 +60,7 @@ class ModbusMainWindow(QMainWindow):
         self.action_about.triggered.connect(self.on_about_clicked)
         self.action_licenses.triggered.connect(self.on_licenses_clicked)
         self.action_scan_for_available_devices.triggered.connect(self.scan_for_available_devices)
+        self.action_exit.triggered.connect(self.on_exit_clicked)
         self.ui.port_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.host_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.remote_port_select.currentIndexChanged.connect(self._update_comboboxes)
@@ -116,7 +117,9 @@ class ModbusMainWindow(QMainWindow):
         file_menu.addAction(self.action_exit)
 
         self.action_scan_for_available_devices = QAction("Scan for available devices")
+        self.action_exit.triggered.connect(self.on_exit_clicked)
         connection_menu.addAction(self.action_scan_for_available_devices)
+        self.action_exit.triggered.connect(self.on_exit_clicked)
 
         self.action_clear_plot = QAction("&Clear Plot", self)
         view_menu.addAction(self.action_clear_plot)
@@ -199,3 +202,12 @@ class ModbusMainWindow(QMainWindow):
                 "See the bundled THIRD_PARTY_NOTICES or LICENSES file for details."
             ),
         )
+
+    def closeEvent(self, event):
+        self.on_exit_clicked(event)
+
+    def on_exit_clicked(self, event):
+        for device_tab in self._open_devices.values():
+            device_tab.close()
+        self.manager.close_all()
+        super().closeEvent(event)

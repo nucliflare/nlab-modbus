@@ -21,7 +21,7 @@ PSU_REGISTER_MAP = {
     "usb_rx_crc_err_cnt": RegisterSpec(reg_type=RegisterType.INPUT, address=3, dtype="uint16", min=0, max=65535),
     "usb_rx_bad_req_cnt": RegisterSpec(reg_type=RegisterType.INPUT, address=4, dtype="uint16", min=0, max=65535),
     "cpu_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=5, dtype="int16", min=-32768, max=32767, unit="*C"),
-    "board_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=6, dtype="int16", min=-32768, max=32767, unit="*C"),
+    "board_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=6, dtype="int16", min=-32768, max=32767, unit="*C", scale=0.01),
     "eeprom_error": RegisterSpec(reg_type=RegisterType.INPUT, address=7, dtype="uint16", min=0, max=2),
     "supply_voltage": RegisterSpec(reg_type=RegisterType.INPUT, address=8, dtype="uint16", min=0, max=65535, unit="V", scale=0.01),
     "hv_voltage": RegisterSpec(reg_type=RegisterType.INPUT, address=9, dtype="uint16", min=0, max=65535, unit="V"),
