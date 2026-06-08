@@ -54,3 +54,7 @@ class NumpyRingBuffer:
                 self.data[: self.index],
             )
         )
+
+    def clear(self) -> None:
+        self.index = 0
+        self.full = False

@@ -94,6 +94,7 @@ class DeviceTab(QWidget):
         self.holding_model.write_requested.connect(self.holding_write_requested)
         self.input_model.plot_enabled_changed.connect(self.plot_enabled_changed)
         self.ui.tab_disconnect_btn.clicked.connect(self.close_tab)
+        self.ui.clear_plot_btn.clicked.connect(self.clear_buffers)
 
     def _setup_plots(self) -> None:
         """
@@ -262,3 +263,8 @@ class DeviceTab(QWidget):
         self.deleteLater()
         self.close()
         self.deleteLater()
+
+    def clear_buffers(self):
+        for buffer in self.input_register_buffer.values():
+            buffer.clear()
+        self.time_buffer.clear()
