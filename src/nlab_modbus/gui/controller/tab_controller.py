@@ -62,6 +62,7 @@ class DeviceTab(QWidget):
         self._run_worker()
 
     def _setup_register_tables(self) -> None:
+        """Attach models to the two table views and apply column sizing."""
         self.ui.holding_table_view.setModel(self.holding_model)
         self.ui.input_table_view.setModel(self.input_model)
 
@@ -74,6 +75,7 @@ class DeviceTab(QWidget):
         self._configure_holding_table()
 
     def _configure_holding_table(self) -> None:
+        """ID column fixed to content width; Register and Value columns stretch."""
         table = self.ui.holding_table_view
         header = table.horizontalHeader()
 
@@ -82,6 +84,7 @@ class DeviceTab(QWidget):
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # Value
 
     def _configure_input_table(self) -> None:
+        """Same as holding table but with a fixed-width Plot checkbox column."""
         table = self.ui.input_table_view
         header = table.horizontalHeader()
 
@@ -91,6 +94,7 @@ class DeviceTab(QWidget):
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Plottable
 
     def _connect_signals(self) -> None:
+        """Wire model signals, button clicks, and plot toggle to their slots."""
         self.holding_model.write_requested.connect(self.holding_write_requested)
         self.input_model.plot_enabled_changed.connect(self.plot_enabled_changed)
         self.ui.tab_disconnect_btn.clicked.connect(self.close_tab)
@@ -124,6 +128,7 @@ class DeviceTab(QWidget):
         key: str,
         label: str,
     ) -> None:
+        """Configure one pyqtgraph GraphicsView: layout, axes, grid, and Y label."""
         layout = pg.GraphicsLayout()
         layout.setContentsMargins(10, 10, 10, 10)
 
@@ -155,6 +160,7 @@ class DeviceTab(QWidget):
         viewbox.setBackgroundColor((255, 255, 255))
 
     def _run_worker(self):
+        """Create and start the DevicePollingThread, wiring its signals to this tab's slots."""
         self.polling_thread = DevicePollingThread(
             device=self.device,
             refresh_rate_ms=self.ui.refresh_spinner.value(),
@@ -170,6 +176,7 @@ class DeviceTab(QWidget):
         elapsed_s: float,
         data: dict[str, int],
     ) -> None:
+        """Slot: receive a polled snapshot, push values into buffers and the table model."""
         self.time_buffer.append(elapsed_s)
         for register_name, value in data.items():
             row_index = self.device.get_register_address(register_name)
@@ -179,15 +186,18 @@ class DeviceTab(QWidget):
         self.update_plots()
 
     def update_holding_registers(self, data: dict[str, int]):
+        """Slot: refresh the holding register table after a successful write-readback."""
         for register_name, value in data.items():
             row_index = self.device.get_register_address(register_name)
             self.holding_model.update_value(row_index, value)
 
     def on_device_polling_failed(self, error: str):
+        """Slot: display a poll error in the main window status bar."""
         msg = f"{self.device.connection_info()}, poll failed: {error}"
         self.main_widget.statusBar().showMessage(msg)
 
     def on_device_write_failed(self, error: str):
+        """Slot: display a write error in the main window status bar."""
         msg = f"{self.device.connection_info()}, write failed: {error}"
         self.main_widget.statusBar().showMessage(msg)
 
@@ -249,11 +259,13 @@ class DeviceTab(QWidget):
                 self.plot_items[register].setData(self.time_buffer.array(), self.input_register_buffer[register].array())
 
     def close(self):
+        """Stop the polling thread gracefully (waits up to 2 s for it to exit)."""
         if self.polling_thread:
             self.polling_thread.stop()
             self.polling_thread.wait(2000)
 
     def close_tab(self):
+        """Remove this tab from the QTabWidget and schedule the widget for deletion."""
         index = self.main_widget.ui.device_tabs.indexOf(self)
         if index == -1:
             return
@@ -265,6 +277,7 @@ class DeviceTab(QWidget):
         self.deleteLater()
 
     def clear_buffers(self):
+        """Reset all ring buffers and the time axis (clears the plot history)."""
         for buffer in self.input_register_buffer.values():
             buffer.clear()
         self.time_buffer.clear()

@@ -14,6 +14,13 @@ from PySide6.QtCore import (
 
 @dataclass
 class RegisterRow:
+    """One row of data shared by both table models.
+
+    register_id maps to the Modbus address so updates from the polling thread
+    can locate the correct row without a full linear scan on every poll cycle.
+    plot_enabled is only meaningful for input registers.
+    """
+
     register_id: int
     name: str
     value: int = 0
@@ -21,6 +28,14 @@ class RegisterRow:
 
 
 class HoldingRegisterTableModel(QAbstractTableModel):
+    """Qt table model for holding (read/write) registers.
+
+    Displays three columns: ID, Register name, Value.  The Value column is
+    editable; committing a new integer emits write_requested so the tab
+    controller can forward it to the polling thread's write queue without the
+    model touching Modbus directly.
+    """
+
     write_requested = Signal(int, str, int)
 
     COL_ID = 0
@@ -99,6 +114,12 @@ class HoldingRegisterTableModel(QAbstractTableModel):
         return flags
 
     def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
+        """Accept a user edit on the Value column and emit write_requested.
+
+        Rejects the edit silently if the value can't be parsed as an integer or
+        falls outside the 0–0xFFFF uint16 range.  No-ops if the value is unchanged
+        to avoid spurious writes to the device.
+        """
         if not index.isValid() or role != Qt.ItemDataRole.EditRole:
             return False
         if index.column() != self.COL_VALUE:
@@ -134,6 +155,14 @@ class HoldingRegisterTableModel(QAbstractTableModel):
 
 
 class InputRegisterTableModel(QAbstractTableModel):
+    """Qt table model for input (read-only) registers.
+
+    Displays four columns: ID, Register name, Value, Plot checkbox.  Values are
+    updated by the polling thread via update_value(); the Plot column lets users
+    toggle a live pyqtgraph trace for any register.  Toggling emits
+    plot_enabled_changed so the tab controller can add/hide plot curves.
+    """
+
     plot_enabled_changed = Signal(str, bool)
 
     COL_ID = 0

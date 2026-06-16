@@ -14,7 +14,11 @@ APP_ICON = PROJECT_ROOT / "resources" / "ewt.ico"
 
 
 def main() -> int:
+    """Create the QApplication, open the main window, and run the event loop.
 
+    Sets a Windows AppUserModelID so the taskbar icon matches the window icon
+    rather than the generic Python launcher icon.
+    """
     if sys.platform == "win32":
         myappid = "EWT.Modbus.Monitor.0.3.0"  # arbitrary but unique
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)

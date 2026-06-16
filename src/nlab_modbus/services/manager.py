@@ -70,6 +70,12 @@ class DeviceManager:
         timeout: float = 0.15,
         retries: int = 0,
     ) -> _ClientHandle:
+        """Return the cached handle for this serial port, creating it if needed.
+
+        Multiple devices on the same RS-485 bus share one client and one lock
+        so their frames never interleave.  The handle is not yet connected here;
+        pymodbus connects lazily on the first transaction.
+        """
         key = ("serial", port)
         handle = self._handles.get(key)
         if handle is None:
@@ -88,6 +94,11 @@ class DeviceManager:
         return handle
 
     def _get_or_create_tcp_handle(self, host: str, port: int) -> _ClientHandle:
+        """Return the cached handle for this host:port, creating it if needed.
+
+        Uses RTU framing over TCP to talk to a ser2net bridge; the framer
+        wraps raw RTU frames in a TCP stream rather than using Modbus TCP PDUs.
+        """
         key = ("tcp", host, port)
         handle = self._handles.get(key)
         if handle is None:
@@ -102,6 +113,12 @@ class DeviceManager:
         return handle
 
     def _attach(self, handle, device_id, device_type, collection):
+        """Create a device instance, inject the shared bus lock, and register it.
+
+        If the same (transport, device_id) combination is already registered the
+        existing device is returned without creating a duplicate — safe to call
+        multiple times with the same arguments.
+        """
         key = (handle.key, device_id)  # e.g. (("serial", "COM3"), 4)
         existing = self._devices_by_key.get(key)
         if existing is not None:
@@ -117,12 +134,15 @@ class DeviceManager:
 
     @property
     def all_devices(self) -> list[BaseModbusDevice]:
+        """All registered devices, local first then remote."""
         return [*self.local, *self.remote]
 
     def by_type(self, device_type: DeviceType) -> list[BaseModbusDevice]:
+        """Filter registered devices by DeviceType."""
         return [d for d in self.all_devices if d.device_type == device_type]
 
     def get_all_devices(self):
+        """Alias for all_devices; retained for backwards compatibility."""
         return [*self.local, *self.remote]
 
     # ---- local ----------------------------------------------------------
@@ -137,6 +157,7 @@ class DeviceManager:
         timeout: float = 0.25,
         retries: int = 0,
     ):
+        """Auto-discover and register all devices found on local serial ports."""
         found_local = scan_local_modbus_devices(
             device_ids=device_ids,
             baudrate=baudrate,
@@ -167,6 +188,10 @@ class DeviceManager:
         stopbits: int = 1,
         bytesize: int = 8,
     ):
+        """Manually connect one device by serial port and Modbus address.
+
+        Returns the device instance (possibly a cached one if already registered).
+        """
         with self._registry_lock:
             handle = self._get_or_create_serial_handle(port, baudrate=baudrate, parity=parity, stopbits=stopbits, bytesize=bytesize)
             return self._attach(handle, device_id, device_type, self.local)
@@ -174,11 +199,16 @@ class DeviceManager:
     # ---- remote ---------------------------------------------------------
 
     def connect_remote(self, host: str, port: int, device_id: int, device_type: DeviceType):
+        """Manually connect one device over TCP (ser2net bridge).
+
+        Returns the device instance (possibly cached if already registered).
+        """
         with self._registry_lock:
             handle = self._get_or_create_tcp_handle(host, port)
             return self._attach(handle, device_id, device_type, self.remote)
 
     def scan_remote(self, host: str, ports: int | list):
+        """Auto-discover and register all devices on the given TCP host and port(s)."""
         if isinstance(ports, int):
             ports = [ports]
         for port in ports:
@@ -189,6 +219,11 @@ class DeviceManager:
                     self._attach(handle, params["device_id"], params["type"], self.remote)
 
     def scan_remote_ips(self, name="nucliflare"):
+        """Discover boards via mDNS and return their IP addresses (synchronous).
+
+        Raises RuntimeError if called from inside a running asyncio event loop;
+        use scan_remote_ips_async() in that context instead.
+        """
         try:
             asyncio.get_running_loop()
         except RuntimeError:
@@ -196,6 +231,7 @@ class DeviceManager:
         raise RuntimeError("Running loop detected — use `await self.scan_remote_ips_async(name)`.")
 
     async def scan_remote_ips_async(self, name="nucliflare"):
+        """Async wrapper around the blocking mDNS scan."""
         return await asyncio.to_thread(scan_remote_boards, name_filter=name)
 
     # ---- teardown -------------------------------------------------------
@@ -220,6 +256,7 @@ class DeviceManager:
                     break
 
     def close_all(self):
+        """Close every Modbus client and clear all device registrations."""
         with self._registry_lock:
             for handle in self._handles.values():
                 with handle.lock:

@@ -8,6 +8,22 @@ from nlab_modbus.core.register_specs import RegisterSpec, RegisterType
 
 
 class BaseModbusDevice:
+    """Protocol-agnostic base for all three instrument types.
+
+    Subclasses supply REGISTER_MAP (a dict of name → RegisterSpec) and
+    optionally READOUT_START / READOUT_STOP for fast block reads.  This class
+    provides the codec (encode/decode), the locking model, and high-level
+    read/write helpers; it never owns a thread or drives polling.
+
+    Concurrency model
+    -----------------
+    bus_lock is an RLock that serializes every Modbus transaction on a shared
+    transport.  DeviceManager injects the same lock instance into every device
+    that shares a serial port or TCP socket, so frames from different devices
+    never interleave.  The RLock (not Lock) allows composite operations such as
+    bus_transaction() to hold the lock while calling lower-level primitives.
+    """
+
     REGISTER_MAP: dict[str, RegisterSpec] = {}
 
     def __init__(self, client: ModbusSerialClient | ModbusTcpClient, device_id: int):
@@ -41,11 +57,13 @@ class BaseModbusDevice:
     # ---- high-level read/write -----------------------------------------
 
     def read(self, name: str) -> Any:
+        """Read one named register and return its decoded engineering value."""
         spec = self._get_spec(name)
         raw = self.read_raw(name)
         return self.decode(raw, spec)
 
     def write(self, name: str, value: Any) -> None:
+        """Encode an engineering value and write it to the named holding register."""
         spec = self._get_spec(name)
         raw = self.encode(value, spec)
         self.write_raw(name, raw)
@@ -53,6 +71,12 @@ class BaseModbusDevice:
     # ---- primitive transactions (the only methods that touch the wire) --
 
     def read_raw(self, name: str) -> list[int]:
+        """Issue one Modbus read and return the raw 16-bit register word(s).
+
+        Selects FC04 (read input registers) or FC03 (read holding registers)
+        based on the register spec. Raises RuntimeError on a Modbus error
+        response.
+        """
         spec = self._get_spec(name)
 
         with self.bus_lock:
@@ -77,6 +101,13 @@ class BaseModbusDevice:
         return result.registers
 
     def read_raw_block(self, address: int, count: int = 1):
+        """Read a contiguous range of input registers in a single FC04 transaction.
+
+        Used by device subclasses to snapshot many registers at once, which is
+        significantly faster than individual reads on a shared RS-485 bus.
+        Does not check isError() — callers rely on the registers attribute being
+        present, so a timeout will surface as an AttributeError downstream.
+        """
         with self.bus_lock:
             result_raw = self.client.read_input_registers(
                 address=address,
@@ -89,6 +120,12 @@ class BaseModbusDevice:
         return result_raw.registers
 
     def write_raw(self, name: str, registers: list[int]) -> None:
+        """Write raw 16-bit word(s) to a named holding register.
+
+        Uses FC06 (write single register) when count == 1 and FC16
+        (write multiple registers) otherwise.  Raises ValueError if the
+        register is not writable or the word count doesn't match the spec.
+        """
         spec = self._get_spec(name)
 
         if spec.reg_type != RegisterType.HOLDING:
@@ -117,6 +154,11 @@ class BaseModbusDevice:
     # ---- codec ----------------------------------------------------------
 
     def decode(self, raw: list[int], spec: RegisterSpec) -> Any:
+        """Convert raw Modbus word(s) to a Python engineering value.
+
+        int16 values transmitted as unsigned 16-bit words are sign-extended
+        before the scale factor is applied. bool registers return a Python bool.
+        """
         if spec.dtype == "uint16":
             return raw[0] * spec.scale
 
@@ -132,6 +174,12 @@ class BaseModbusDevice:
         raise NotImplementedError(f"Unsupported dtype for decoding: {spec.dtype}")
 
     def encode(self, value: Any, spec: RegisterSpec) -> list[int]:
+        """Convert a Python engineering value to raw Modbus 16-bit word(s).
+
+        Applies the inverse scale (rounds to nearest integer count), validates
+        against spec.min/max, and wraps negative int16 values into their
+        unsigned 16-bit two's complement form before transmission.
+        """
         if spec.dtype == "uint16":
             raw_value = round((value) / spec.scale)
             if not 0 <= raw_value <= 0xFFFF:
@@ -152,6 +200,7 @@ class BaseModbusDevice:
         raise NotImplementedError(f"Unsupported dtype for encoding: {spec.dtype}")
 
     def _get_spec(self, name: str) -> RegisterSpec:
+        """Return the RegisterSpec for name, or raise a descriptive KeyError."""
         try:
             return self.REGISTER_MAP[name]
         except KeyError as exc:
@@ -175,6 +224,7 @@ class BaseModbusDevice:
         self.disconnect()
 
     def connection_info(self) -> str:
+        """Human-readable connection string used as the tab label in the GUI."""
         if isinstance(self.client, ModbusSerialClient):
             return f"serial://{self.client.comm_params.host}:{self.device_id}"
         if isinstance(self.client, ModbusTcpClient):
@@ -202,6 +252,7 @@ class BaseModbusDevice:
         return result
 
     def get_status(self) -> str:
+        """Return a formatted string of all register values for debugging."""
         lines = []
         with self.bus_transaction():
             if self.device_type is not None:
@@ -217,5 +268,6 @@ class BaseModbusDevice:
 
         return "\n".join(lines) + "\n"
 
-    def get_register_address(self, name):
+    def get_register_address(self, name: str) -> int:
+        """Return the Modbus address of a named register."""
         return self.REGISTER_MAP[name].address

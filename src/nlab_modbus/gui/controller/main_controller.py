@@ -22,6 +22,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class ModbusMainWindow(QMainWindow):
+    """Main application window for the Modbus Monitor GUI.
+
+    Hosts the connection panel (serial port / TCP dropdowns, connect buttons)
+    and a QTabWidget where each connected device gets its own DeviceTab.
+    Owns the DeviceManager so it can close all transports cleanly on exit.
+
+    Device tabs are tracked in _open_devices so the same device cannot be
+    opened twice; connecting an already-open device raises an info dialog and
+    switches focus to the existing tab instead.
+    """
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
@@ -69,6 +80,7 @@ class ModbusMainWindow(QMainWindow):
         self.ui.remote_btn.clicked.connect(self.on_connect_remote_clicked)
 
     def on_connect_remote_clicked(self) -> None:
+        """Connect to the device selected in the remote (TCP) dropdowns."""
         host = self.ui.host_select.currentText()
         port = self.ui.remote_port_select.currentText()
         device_id, device_type = self.ui.remote_select.currentText().split()
@@ -88,6 +100,7 @@ class ModbusMainWindow(QMainWindow):
         self.add_device_tab(device)
 
     def add_device_tab(self, device):
+        """Open a DeviceTab for device, or bring the existing tab to front."""
         if self.ui.devices_group.isHidden():
             self.ui.devices_group.show()
 
@@ -106,6 +119,7 @@ class ModbusMainWindow(QMainWindow):
         pass
 
     def _setup_menu_bar(self) -> None:
+        """Build the File / Connection / View / Help menus and wire their actions."""
         menu_bar = self.menuBar()
 
         file_menu = menu_bar.addMenu("&File")
@@ -131,6 +145,7 @@ class ModbusMainWindow(QMainWindow):
         help_menu.addAction(self.action_licenses)
 
     def _setup_status_bar(self) -> None:
+        """Create and attach the status bar, initially showing 'Ready'."""
         status_bar = QStatusBar(self)
         self.setStatusBar(status_bar)
 
@@ -174,6 +189,7 @@ class ModbusMainWindow(QMainWindow):
         self._update_comboboxes()
 
     def _update_comboboxes(self):
+        """Refresh device-ID dropdowns to match the currently selected port / host."""
         local_port = self.ui.port_select.currentText()
         local_ids = self.available_devices["local"][local_port]
         self.ui.local_select.clear()
@@ -186,6 +202,7 @@ class ModbusMainWindow(QMainWindow):
         self.ui.remote_select.addItems(remote_ids)
 
     def on_about_clicked(self) -> None:
+        """Show the About dialog."""
         QMessageBox.about(
             self,
             "About Modbus Monitor",
@@ -193,6 +210,7 @@ class ModbusMainWindow(QMainWindow):
         )
 
     def on_licenses_clicked(self) -> None:
+        """Show third-party licence information."""
         QMessageBox.information(
             self,
             "Licenses",
@@ -205,15 +223,18 @@ class ModbusMainWindow(QMainWindow):
         )
 
     def closeEvent(self, event):
+        """Delegate to on_exit_clicked so all devices are shut down cleanly."""
         self.on_exit_clicked(event)
 
     def on_exit_clicked(self, event):
+        """Stop all polling threads and close all Modbus clients before quitting."""
         for device_tab in self._open_devices.values():
             device_tab.close()
         self.manager.close_all()
         super().closeEvent(event)
 
     def hide_tabs(self):
+        """Collapse the devices group box and resize the window when all tabs are closed."""
         if self.ui.device_tabs.count() == 0:
             self.ui.devices_group.hide()
             QTimer.singleShot(0, self.adjustSize)

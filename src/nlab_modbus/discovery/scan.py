@@ -26,6 +26,20 @@ def scan_local_modbus_devices(
     timeout: float = 0.25,
     retries: int = 0,
 ) -> list[dict]:
+    """Probe every serial port for responding Modbus devices.
+
+    Opens each available COM/tty port in turn, then walks device_ids 1–16
+    and reads the hardware_version input register (address 0) from each.
+    A successful response identifies both the device type and its Modbus
+    address.  Each port is closed before moving to the next.
+
+    Returns a list of dicts with keys:
+        type (DeviceType), device_id (int), host (None), port (str),
+        description (str), hardware_id (int).
+
+    The 250 ms timeout and zero retries are chosen for speed: a missing device
+    silently times out in one slot rather than blocking the scan for seconds.
+    """
     found: list[dict] = []
 
     for port_info in list_ports.comports():

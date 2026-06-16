@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class RegisterWriteCommand:
+    """Immutable write request queued by the GUI and consumed by the polling thread.
+
+    new_value is an engineering value (e.g. volts, °C) as displayed in the GUI.
+    The device codec converts it to raw register counts via encode() at execution
+    time.  Frozen to prevent accidental mutation while the command sits in the queue.
+    """
+
     register_id: int
     register_name: str
     # Engineering value as shown in the GUI. The device's encode() converts
@@ -97,6 +104,7 @@ class DevicePollingThread(QThread):
         self._stop_event.set()
 
     def update_refresh_rate(self, new_value_ms: int) -> None:
+        """Change the polling interval. Safe to call from any thread; takes effect next cycle."""
         # Read fresh each loop iteration in run(), so this takes effect next cycle.
         self.refresh_rate_ms = new_value_ms
 

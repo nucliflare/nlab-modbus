@@ -18,5 +18,11 @@ def create_device(
     device_id: int,
     device_type: DeviceType,
 ) -> BaseModbusDevice:
+    """Instantiate the correct device subclass for the given DeviceType.
+
+    The client and device_id are passed through unchanged; the caller (typically
+    DeviceManager._attach) is responsible for injecting the shared bus_lock
+    after construction.
+    """
     cls = DEVICE_CLASS_BY_TYPE[device_type]
     return cls(client, device_id)

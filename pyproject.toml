@@ -18,7 +18,8 @@ dependencies = [
 dev = [
     "matplotlib",
     "numpy",
-    "pip-licenses"
+    "pip-licenses",
+    "jupyter"
 ]
 
 [tool.setuptools.packages.find]

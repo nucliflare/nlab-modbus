@@ -5,6 +5,16 @@ from nlab_modbus.maps.psu_map import PSU_REGISTER_MAP
 
 
 class PSUDevice(BaseModbusDevice):
+    """High-voltage power supply for photomultiplier tubes (PMT).
+
+    Produces the PMT bias voltage via a PWM-driven boost converter with
+    closed-loop PID control.  Monitors HV output, PMT anode current, board
+    temperatures, and PWM duty cycle.  Simpler than GeigerDevice: no DAC
+    outputs and no dose-calibration polynomial registers.
+
+    Hardware version register value: 769 (DeviceType.PSU).
+    """
+
     REGISTER_MAP = PSU_REGISTER_MAP
     READOUT_START = 3
     READOUT_STOP = 16
@@ -15,6 +25,11 @@ class PSUDevice(BaseModbusDevice):
         self._register_index = build_register_index(PSUDevice.REGISTER_MAP)
 
     def read_snapshot(self) -> dict[str, int | float]:
+        """Read the key input registers (addresses 3–15) in one FC04 transaction.
+
+        Returns a dict of register_name → scaled engineering value for the
+        live operating parameters (HV output, current, temps, duty cycle).
+        """
         count = PSUDevice.READOUT_STOP - PSUDevice.READOUT_START
         registers = self.read_raw_block(address=PSUDevice.READOUT_START, count=count)
 

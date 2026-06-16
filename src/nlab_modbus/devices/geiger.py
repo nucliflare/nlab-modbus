@@ -5,6 +5,17 @@ from nlab_modbus.maps.geiger_map import GEIGER_REGISTER_MAP
 
 
 class GeigerDevice(BaseModbusDevice):
+    """Geiger-Mueller radiation probe controller.
+
+    Generates the detector high voltage (50 – 650 V) via a PWM-driven
+    boost converter and counts pulses from the GM tube.  Converts raw
+    counts per second to dose rate (mSv/h) and cumulative dose (mSv) using
+    a two-stage piecewise polynomial calibration curve stored in holding
+    registers.  Also exposes three DAC outputs for external signal processing.
+
+    Hardware version register value: 513 (DeviceType.GEIGER).
+    """
+
     REGISTER_MAP = GEIGER_REGISTER_MAP
     READOUT_START = 3
     READOUT_STOP = 20
@@ -19,6 +30,12 @@ class GeigerDevice(BaseModbusDevice):
         self._register_index = build_register_index(GeigerDevice.REGISTER_MAP)
 
     def read_snapshot(self) -> dict[str, int | float]:
+        """Read the key input registers (addresses 3–19) in one FC04 transaction.
+
+        Skips hardware_version and firmware_version (addresses 0–1) and the
+        raw pulse counter (address 2) which overflows frequently and is instead
+        tracked via pulses_per_sec.  Returns a dict of name → engineering value.
+        """
         count = GeigerDevice.READOUT_STOP - GeigerDevice.READOUT_START
         registers = self.read_raw_block(address=GeigerDevice.READOUT_START, count=count)
 

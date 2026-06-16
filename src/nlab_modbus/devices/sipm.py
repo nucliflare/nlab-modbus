@@ -5,6 +5,17 @@ from nlab_modbus.maps.sipm_map import SIPM_REGISTER_MAP
 
 
 class SiPMDevice(BaseModbusDevice):
+    """Silicon Photomultiplier (SiPM) bias voltage board.
+
+    Controls the high-voltage output (1.5 – 7.8 V, fine-tuned in 10 mV steps)
+    used to bias a SiPM detector.  Features include temperature compensation
+    (adjusts Vout automatically to maintain gain over temperature), an
+    on-board calibration LED driver for linearity measurements, and a PID
+    voltage regulator.
+
+    Hardware version register value: 257 (DeviceType.SIPM).
+    """
+
     REGISTER_MAP = SIPM_REGISTER_MAP
     READOUT_START = 3
     READOUT_STOP = 22
@@ -15,6 +26,12 @@ class SiPMDevice(BaseModbusDevice):
         self._register_index = build_register_index(SiPMDevice.REGISTER_MAP)
 
     def read_snapshot(self) -> dict[str, int | float]:
+        """Read the key input registers (addresses 3–21) in one FC04 transaction.
+
+        Skips the first two input registers (hardware_version, firmware_version)
+        because they never change at runtime and are fetched once on connect.
+        Returns a dict of register_name → scaled engineering value.
+        """
         count = SiPMDevice.READOUT_STOP - SiPMDevice.READOUT_START
         registers = self.read_raw_block(address=SiPMDevice.READOUT_START, count=count)
 
