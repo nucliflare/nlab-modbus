@@ -18,12 +18,12 @@ dependencies = [
     "zeroconf",
     "pyqtgraph",
     "PySide6",
+    "numpy",
 ]
 
 [project.optional-dependencies]
 dev = [
     "matplotlib",
-    "numpy",
     "pip-licenses",
     "jupyter",
 ]
@@ -36,3 +36,6 @@ Repository = "https://apps.ewt.cloud:30008/kbrylew/modbus-wrapper"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"nlab_modbus.data" = ["*.csv"]
