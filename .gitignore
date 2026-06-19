@@ -26,6 +26,7 @@ src/*.egg-info/
 *.egg-info/
 .installed.cfg
 *.egg
+wiki/
 MANIFEST
 
 # PyInstaller
