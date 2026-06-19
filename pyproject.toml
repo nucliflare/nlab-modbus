@@ -37,7 +37,7 @@ build = [
 nlab-modbus-gui = "nlab_modbus.gui.main_app:main"
 
 [project.urls]
-Repository = "https://apps.ewt.cloud:30008/kbrylew/modbus-wrapper"
+Repository = "https://github.com/kbrylew/nlab-modbus-devices"
 
 [tool.setuptools.dynamic]
 version = {attr = "nlab_modbus._version.__version__"}

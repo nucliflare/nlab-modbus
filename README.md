@@ -16,7 +16,7 @@ A PySide6 desktop application and Python library for monitoring and controlling 
 
 ## Installation
 
-Requires **Python ≥ 3.10**.
+Requires **Python ≥ 3.11**.
 
 ```bash
 pip install -e .
@@ -181,8 +181,13 @@ manager.close_all()
 
 ---
 
+## Hardware ecosystem
+
+The mDNS auto-discovery uses the service name `nucliflare` — this is specific to [Eastern Wall Technologies](https://eastern-wall.com) ser2net bridge boards. If your hardware advertises a different service name, pass `name_filter` to `scan_remote_boards()` or set it to `None` to discover all mDNS services.
+
+The three device types (SiPM, Geiger, PMT PSU) are identified by their `hardware_version` register (input register 0). Adding support for a new device type requires a register map in `maps/`, a device subclass in `devices/`, and an entry in the `DeviceType` enum.
+
 ## Project information
 
-- **Version**: 0.1.0  
-- **Python**: ≥ 3.10  
-- **License**: see `LICENSES` / `THIRD_PARTY_NOTICES`
+- **Python**: ≥ 3.11  
+- **License**: MIT
