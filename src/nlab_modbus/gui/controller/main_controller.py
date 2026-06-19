@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from nlab_modbus import __version__
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
 from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_boards, scan_remote_modbus_devices
@@ -169,7 +170,8 @@ class ModbusMainWindow(QMainWindow):
         self.ui.port_select.clear()
         self.ui.port_select.addItems(local_ports)
 
-        self.ui.local_select.addItems(self.available_devices["local"][port])
+        if local_ports:
+            self.ui.local_select.addItems(self.available_devices["local"][local_ports[0]])
         found_devices = {}
         ips = scan_remote_boards()
         for ip in ips:
@@ -191,13 +193,13 @@ class ModbusMainWindow(QMainWindow):
     def _update_comboboxes(self):
         """Refresh device-ID dropdowns to match the currently selected port / host."""
         local_port = self.ui.port_select.currentText()
-        local_ids = self.available_devices["local"][local_port]
+        local_ids = self.available_devices["local"].get(local_port, [])
         self.ui.local_select.clear()
         self.ui.local_select.addItems(local_ids)
 
         remote_host = self.ui.host_select.currentText()
         remote_port = self.ui.remote_port_select.currentText()
-        remote_ids = self.available_devices["remote"][remote_host][remote_port]
+        remote_ids = self.available_devices["remote"].get(remote_host, {}).get(remote_port, [])
         self.ui.remote_select.clear()
         self.ui.remote_select.addItems(remote_ids)
 
@@ -206,7 +208,7 @@ class ModbusMainWindow(QMainWindow):
         QMessageBox.about(
             self,
             "About Modbus Monitor",
-            ("<b>Modbus Monitor</b><br>Version 0.1.0<br><br>Eastern Wall Technologies<br><br>Hardware monitoring and Modbus control application."),
+            f"<b>Modbus Monitor</b><br>Version {__version__}<br><br>Eastern Wall Technologies<br><br>Hardware monitoring and Modbus control application.",
         )
 
     def on_licenses_clicked(self) -> None:

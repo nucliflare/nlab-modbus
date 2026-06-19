@@ -4,28 +4,33 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nlab-modbus"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Modbus RTU driver and desktop GUI for SiPM bias boards, Geiger-Mueller radiation probes, and photomultiplier HV power supplies"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
-    { name = "Kamil Brylew", email = "brykamed@gmail.com" },
+    { name = "Kamil Brylew", email = "kamil.brylew@nuclear-lab.com" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "pymodbus",
-    "pyserial",
-    "zeroconf",
-    "pyqtgraph",
-    "PySide6",
-    "numpy",
+    "pymodbus==3.13.0",
+    "pyserial==3.5",
+    "zeroconf==0.149.16",
+    "pyqtgraph==0.14.0",
+    "PySide6==6.11.1",
+    "numpy==2.4.6",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "matplotlib",
-    "pip-licenses",
-    "jupyter",
+    "matplotlib==3.10.9",
+    "pip-licenses==5.5.5",
+    "jupyter==1.1.1",
+]
+build = [
+    "nuitka==4.1.2",
+    "ordered-set==4.1.0",
+    "zstandard==0.25.0",
 ]
 
 [project.scripts]
@@ -33,6 +38,9 @@ nlab-modbus-gui = "nlab_modbus.gui.main_app:main"
 
 [project.urls]
 Repository = "https://apps.ewt.cloud:30008/kbrylew/modbus-wrapper"
+
+[tool.setuptools.dynamic]
+version = {attr = "nlab_modbus._version.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

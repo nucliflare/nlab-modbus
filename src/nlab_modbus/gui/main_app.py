@@ -7,10 +7,21 @@ from pathlib import Path
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
+from nlab_modbus import __version__
 from nlab_modbus.gui.controller.main_controller import ModbusMainWindow
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-APP_ICON = PROJECT_ROOT / "resources" / "ewt.ico"
+_SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def _find_icon() -> Path:
+    candidates = [
+        _SCRIPT_DIR / "resources" / "ewt.ico",
+        _SCRIPT_DIR / "nlab_modbus" / "gui" / "resources" / "ewt.ico",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    raise FileNotFoundError(f"Application icon not found in: {candidates}")
 
 
 def main() -> int:
@@ -20,17 +31,14 @@ def main() -> int:
     rather than the generic Python launcher icon.
     """
     if sys.platform == "win32":
-        myappid = "EWT.Modbus.Monitor.0.3.0"  # arbitrary but unique
+        myappid = f"EWT.Modbus.Monitor.{__version__}"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     app = QApplication(sys.argv)
 
     window = ModbusMainWindow()
     window.show()
 
-    if APP_ICON.exists():
-        app.setWindowIcon(QIcon(str(APP_ICON)))
-    else:
-        raise FileNotFoundError(f"Application icon not found: {APP_ICON}")
+    app.setWindowIcon(QIcon(str(_find_icon())))
     return app.exec()
 
 
