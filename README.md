@@ -183,7 +183,7 @@ manager.close_all()
 
 ## Hardware ecosystem
 
-The mDNS auto-discovery uses the service name `nucliflare` — this is specific to [Eastern Wall Technologies](https://eastern-wall.com) ser2net bridge boards. If your hardware advertises a different service name, pass `name_filter` to `scan_remote_boards()` or set it to `None` to discover all mDNS services.
+The mDNS auto-discovery uses the service name `nucliflare` — this is specific to [Eastern Wall Technologies](https://ewt.tech) ser2net bridge boards. If your hardware advertises a different service name, pass `name_filter` to `scan_remote_boards()` or set it to `None` to discover all mDNS services.
 
 The three device types (SiPM, Geiger, PMT PSU) are identified by their `hardware_version` register (input register 0). Adding support for a new device type requires a register map in `maps/`, a device subclass in `devices/`, and an entry in the `DeviceType` enum.
 
