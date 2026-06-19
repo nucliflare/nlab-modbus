@@ -73,7 +73,10 @@ class ModbusMainWindow(QMainWindow):
         self.action_about.triggered.connect(self.on_about_clicked)
         self.action_licenses.triggered.connect(self.on_licenses_clicked)
         self.action_scan_for_available_devices.triggered.connect(self.scan_for_available_devices)
-        self.action_exit.triggered.connect(self.on_exit_clicked)
+        self.action_exit.triggered.connect(self.close)
+        self.action_disconnect_tab.triggered.connect(self.on_disconnect_tab_clicked)
+        self.action_disconnect_all.triggered.connect(self.on_disconnect_all_clicked)
+        self.action_clear_plot.triggered.connect(self.on_clear_plot_clicked)
         self.ui.port_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.host_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.remote_port_select.currentIndexChanged.connect(self._update_comboboxes)
@@ -113,12 +116,6 @@ class ModbusMainWindow(QMainWindow):
             self.ui.device_tabs.setCurrentWidget(self._open_devices[device])
             QMessageBox.information(self, "Device Already Connected", f"The device '{device.connection_info()}' is already connected.")
 
-    def on_scan_clicked(self) -> None:
-        """
-        Placeholder for device discovery logic.
-        """
-        pass
-
     def _setup_menu_bar(self) -> None:
         """Build the File / Connection / View / Help menus and wire their actions."""
         menu_bar = self.menuBar()
@@ -132,10 +129,14 @@ class ModbusMainWindow(QMainWindow):
         self.action_exit.setShortcut("Ctrl+Q")
         file_menu.addAction(self.action_exit)
 
-        self.action_scan_for_available_devices = QAction("Scan for available devices")
-        self.action_exit.triggered.connect(self.on_exit_clicked)
+        self.action_scan_for_available_devices = QAction("&Scan for available devices", self)
+        self.action_scan_for_available_devices.setShortcut("F5")
+        self.action_disconnect_tab = QAction("&Disconnect current tab", self)
+        self.action_disconnect_all = QAction("Disconnect &all", self)
         connection_menu.addAction(self.action_scan_for_available_devices)
-        self.action_exit.triggered.connect(self.on_exit_clicked)
+        connection_menu.addSeparator()
+        connection_menu.addAction(self.action_disconnect_tab)
+        connection_menu.addAction(self.action_disconnect_all)
 
         self.action_clear_plot = QAction("&Clear Plot", self)
         view_menu.addAction(self.action_clear_plot)
@@ -224,16 +225,34 @@ class ModbusMainWindow(QMainWindow):
             ),
         )
 
-    def closeEvent(self, event):
-        """Delegate to on_exit_clicked so all devices are shut down cleanly."""
-        self.on_exit_clicked(event)
-
-    def on_exit_clicked(self, event):
-        """Stop all polling threads and close all Modbus clients before quitting."""
+    def _shutdown(self) -> None:
+        """Stop all polling threads and close all Modbus clients."""
         for device_tab in self._open_devices.values():
             device_tab.close()
         self.manager.close_all()
+
+    def closeEvent(self, event):
+        self._shutdown()
         super().closeEvent(event)
+
+    def on_disconnect_tab_clicked(self) -> None:
+        """Close the currently visible device tab."""
+        tab = self.ui.device_tabs.currentWidget()
+        if isinstance(tab, DeviceTab):
+            tab.close_tab()
+
+    def on_disconnect_all_clicked(self) -> None:
+        """Close every open device tab."""
+        while self.ui.device_tabs.count():
+            tab = self.ui.device_tabs.widget(0)
+            if isinstance(tab, DeviceTab):
+                tab.close_tab()
+
+    def on_clear_plot_clicked(self) -> None:
+        """Clear the plot buffers of the currently visible device tab."""
+        tab = self.ui.device_tabs.currentWidget()
+        if isinstance(tab, DeviceTab):
+            tab.clear_buffers()
 
     def hide_tabs(self):
         """Collapse the devices group box and resize the window when all tabs are closed."""
