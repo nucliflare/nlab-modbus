@@ -145,8 +145,12 @@ class DevicePollingThread(QThread):
             try:
                 self._execute_write(command)
             except Exception as exc:
-                logger.exception("Write failed for register %s", command.register_name)
-                self.write_failed.emit(f"{command.register_name}: {exc}")
+                error_str = f"{command.register_name}: {exc}"
+                if "exception_code=4" in str(exc):
+                    logger.warning("Write rejected (password?) for register %s", command.register_name)
+                else:
+                    logger.exception("Write failed for register %s", command.register_name)
+                self.write_failed.emit(error_str)
             else:
                 self.write_succeeded.emit(f"{command.register_name}: OK")
                 did_write = True
