@@ -146,17 +146,17 @@ class PSUDevice(BaseModbusDevice):
         """Get firmware version"""
         return self.read("firmware_version")
 
-    def get_usb_rx_frames_cnt(self) -> int:
-        """Get USB received frames count"""
-        return self.read("usb_rx_frames_cnt")
+    def get_rs485_rx_frames_cnt(self) -> int:
+        """Get RS485 received frames count"""
+        return self.read("rs485_rx_frames_cnt")
 
-    def get_usb_rx_crc_err_cnt(self) -> int:
-        """Get USB received CRC error count"""
-        return self.read("usb_rx_crc_err_cnt")
+    def get_rs485_rx_crc_err_cnt(self) -> int:
+        """Get RS485 received CRC error count"""
+        return self.read("rs485_rx_crc_err_cnt")
 
-    def get_usb_rx_bad_req_cnt(self) -> int:
-        """Get USB received bad request count"""
-        return self.read("usb_rx_bad_req_cnt")
+    def get_rs485_rx_bad_req_cnt(self) -> int:
+        """Get RS485 received bad request count"""
+        return self.read("rs485_rx_bad_req_cnt")
 
     def get_cpu_temp(self) -> float:
         """Get CPU temperature"""

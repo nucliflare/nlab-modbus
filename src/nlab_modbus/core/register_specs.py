@@ -43,6 +43,7 @@ class RegisterSpec:
     count: int = 1
     scale: float = 1.0
     unit: str | None = None
+    password_protected: bool = False
 
 
 RegisterKey = tuple[RegisterType, int]
@@ -81,7 +82,7 @@ def decode_register_value(raw_value: int, spec: RegisterSpec) -> int | float:
     if spec.dtype == "int16" and value >= 0x8000:
         value -= 0x10000
 
-    return value * spec.scale
+    return value if spec.scale == 1.0 else value * spec.scale
 
 
 def decode_register_block(

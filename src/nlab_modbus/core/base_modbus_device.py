@@ -138,13 +138,13 @@ class BaseModbusDevice:
             if spec.count == 1:
                 result = self.client.write_register(
                     address=spec.address,
-                    value=registers[0],
+                    value=int(registers[0]),
                     device_id=self.device_id,
                 )
             else:
                 result = self.client.write_registers(
                     address=spec.address,
-                    values=registers,
+                    values=[int(v) for v in registers],
                     device_id=self.device_id,
                 )
 
@@ -160,13 +160,14 @@ class BaseModbusDevice:
         before the scale factor is applied. bool registers return a Python bool.
         """
         if spec.dtype == "uint16":
-            return raw[0] * spec.scale
+            value = raw[0]
+            return value if spec.scale == 1.0 else value * spec.scale
 
         if spec.dtype == "int16":
             value = raw[0]
             if value >= 0x8000:
                 value -= 0x10000
-            return value * spec.scale
+            return value if spec.scale == 1.0 else value * spec.scale
 
         if spec.dtype == "bool":
             return bool(raw[0])
@@ -181,13 +182,13 @@ class BaseModbusDevice:
         unsigned 16-bit two's complement form before transmission.
         """
         if spec.dtype == "uint16":
-            raw_value = round((value) / spec.scale)
+            raw_value = int(round(value / spec.scale))
             if not 0 <= raw_value <= 0xFFFF:
                 raise ValueError(f"Encoded uint16 value out of range: {raw_value}")
             return [raw_value]
 
         if spec.dtype == "int16":
-            raw_value = round((value) / spec.scale)
+            raw_value = int(round(value / spec.scale))
             if not -0x8000 <= raw_value <= 0x7FFF:
                 raise ValueError(f"Encoded int16 value out of range: {raw_value}")
             if raw_value < 0:

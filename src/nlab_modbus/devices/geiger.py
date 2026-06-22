@@ -79,21 +79,21 @@ class GeigerDevice(BaseModbusDevice):
         """Set PWM set voltage"""
         self.write("pwm_set_voltage", value)
 
-    def get_dac_vout_mv(self) -> int:
+    def get_pulse_trig_level_mv(self) -> int:
         """Get DAC output voltage in millivolts"""
-        return self.read("dac_vout_mv")
+        return self.read("pulse_trig_level_mv")
 
-    def set_dac_vout_mv(self, value: int) -> None:
+    def set_pulse_trig_level_mv(self, value: int) -> None:
         """Set DAC output voltage in millivolts"""
-        self.write("dac_vout_mv", value)
+        self.write("pulse_trig_level_mv", value)
 
-    def get_dac_vout_mv_2(self) -> int:
-        """Get DAC output voltage 2 in millivolts"""
-        return self.read("dac_vout_mv_2")
+    def get_dummy_1(self) -> None:
+        """Reserved dummy register"""
+        pass
 
-    def set_dac_vout_mv_2(self, value: int) -> None:
-        """Set DAC output voltage 2 in millivolts"""
-        self.write("dac_vout_mv_2", value)
+    def set_dummy_1(self, value: int) -> None:
+        """Reserved dummy register"""
+        pass
 
     def get_pwm_freq_khz(self) -> float:
         """Get PWM frequency in kHz"""
@@ -119,13 +119,13 @@ class GeigerDevice(BaseModbusDevice):
         """Set PWM output voltage compensation"""
         self.write("pwm_outvolt_comp", value)
 
-    def get_dac_vout_mv_3(self) -> int:
-        """Get DAC output voltage 3 in millivolts"""
-        return self.read("dac_vout_mv_3")
+    def get_dummy_2(self) -> None:
+        """Reserved dummy register"""
+        pass
 
-    def set_dac_vout_mv_3(self, value: int) -> None:
-        """Set DAC output voltage 3 in millivolts"""
-        self.write("dac_vout_mv_3", value)
+    def set_dummy_2(self, value: int) -> None:
+        """Reserved dummy register"""
+        pass
 
     def get_scale_coeff_p1_a2(self) -> int:
         """Get scale coefficient P1 A2"""
@@ -304,17 +304,17 @@ class GeigerDevice(BaseModbusDevice):
         """Get dose in mSv"""
         return self.read("dose_msv")
 
-    def get_usb_rx_frames_cnt(self) -> int:
-        """Get USB received frames count"""
-        return self.read("usb_rx_frames_cnt")
+    def get_rs485_rx_frames_cnt(self) -> int:
+        """Get RS485 received frames count"""
+        return self.read("rs485_rx_frames_cnt")
 
-    def get_usb_rx_crc_err_cnt(self) -> int:
-        """Get USB received CRC error count"""
-        return self.read("usb_rx_crc_err_cnt")
+    def get_rs485_rx_crc_err_cnt(self) -> int:
+        """Get RS485 received CRC error count"""
+        return self.read("rs485_rx_crc_err_cnt")
 
-    def get_usb_rx_bad_req_cnt(self) -> int:
-        """Get USB received bad request count"""
-        return self.read("usb_rx_bad_req_cnt")
+    def get_rs485_rx_bad_req_cnt(self) -> int:
+        """Get RS485 received bad request count"""
+        return self.read("rs485_rx_bad_req_cnt")
 
     def get_cpu_temp(self) -> float:
         """Get CPU temperature"""
