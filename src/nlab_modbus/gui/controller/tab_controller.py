@@ -4,7 +4,7 @@ import random
 
 import pyqtgraph as pg
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QHeaderView, QWidget
+from PySide6.QtWidgets import QHeaderView, QInputDialog, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
@@ -50,7 +50,12 @@ class DeviceTab(QWidget):
         for i, (register, value) in enumerate(self.device.get_all_input_registers().items()):
             self.input_register_buffer[register] = NumpyRingBuffer(1000)
             input_registers.append(RegisterRow(i, register, value))
-        holding_registers = [RegisterRow(i, *pair) for i, pair in enumerate(self.device.get_all_holding_registers().items())]
+        holding_registers = []
+        for i, (name, value) in enumerate(self.device.get_all_holding_registers().items()):
+            spec = self.device.REGISTER_MAP[name]
+            holding_registers.append(
+                RegisterRow(i, name, value, password_protected=spec.password_protected)
+            )
         self.holding_model = HoldingRegisterTableModel(holding_registers)
         self.input_model = InputRegisterTableModel(input_registers)
 
@@ -197,9 +202,39 @@ class DeviceTab(QWidget):
         self.main_widget.statusBar().showMessage(msg)
 
     def on_device_write_failed(self, error: str):
-        """Slot: display a write error in the main window status bar."""
+        """Slot: display a write error in the main window status bar.
+
+        If the error looks like a password rejection (Modbus exception code 4),
+        prompt the user for the service password again.
+        """
         msg = f"{self.device.connection_info()}, write failed: {error}"
         self.main_widget.statusBar().showMessage(msg)
+        if "exception_code=4" in error:
+            self._prompt_service_password()
+
+    @property
+    def service_mode(self) -> bool:
+        return self.holding_model._service_mode
+
+    def set_service_mode(self, enabled: bool) -> None:
+        self.holding_model.set_service_mode(enabled)
+
+    def _prompt_service_password(self) -> None:
+        password, ok = QInputDialog.getInt(
+            self, "Service Password",
+            "Write rejected — enter the service password:",
+            0, -32767, 32767,
+        )
+        if ok:
+            try:
+                self.device.write("pass_static", password)
+                self.holding_model.update_value(
+                    self.device.get_register_address("pass_static"), password
+                )
+                self.set_service_mode(True)
+                self.main_widget.update_service_mode_action()
+            except Exception as exc:
+                self.main_widget.statusBar().showMessage(f"Password write failed: {exc}")
 
     @Slot(int, str, int)
     def holding_write_requested(self, register_id: int, register_name: str, new_value: int) -> None:

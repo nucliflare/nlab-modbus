@@ -5,6 +5,7 @@ from pathlib import Path
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
+    QInputDialog,
     QMainWindow,
     QMessageBox,
     QStatusBar,
@@ -77,6 +78,8 @@ class ModbusMainWindow(QMainWindow):
         self.action_disconnect_tab.triggered.connect(self.on_disconnect_tab_clicked)
         self.action_disconnect_all.triggered.connect(self.on_disconnect_all_clicked)
         self.action_clear_plot.triggered.connect(self.on_clear_plot_clicked)
+        self.action_service_mode.triggered.connect(self.on_service_mode_toggled)
+        self.ui.device_tabs.currentChanged.connect(self._on_tab_changed)
         self.ui.port_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.host_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.remote_port_select.currentIndexChanged.connect(self._update_comboboxes)
@@ -140,6 +143,11 @@ class ModbusMainWindow(QMainWindow):
 
         self.action_clear_plot = QAction("&Clear Plot", self)
         view_menu.addAction(self.action_clear_plot)
+
+        self.action_service_mode = QAction("&Service Mode", self)
+        self.action_service_mode.setCheckable(True)
+        connection_menu.addSeparator()
+        connection_menu.addAction(self.action_service_mode)
 
         self.action_about = QAction("&About", self)
         self.action_licenses = QAction("&Licenses", self)
@@ -253,6 +261,44 @@ class ModbusMainWindow(QMainWindow):
         tab = self.ui.device_tabs.currentWidget()
         if isinstance(tab, DeviceTab):
             tab.clear_buffers()
+
+    def on_service_mode_toggled(self, checked: bool) -> None:
+        tab = self.ui.device_tabs.currentWidget()
+        if not isinstance(tab, DeviceTab):
+            self.action_service_mode.setChecked(False)
+            return
+        if checked:
+            password, ok = QInputDialog.getInt(
+                self, "Service Password",
+                "Enter the service password:",
+                0, -32767, 32767,
+            )
+            if ok:
+                try:
+                    tab.device.write("pass_static", password)
+                    tab.holding_model.update_value(
+                        tab.device.get_register_address("pass_static"), password
+                    )
+                    tab.set_service_mode(True)
+                except Exception as exc:
+                    self.statusBar().showMessage(f"Password write failed: {exc}")
+                    self.action_service_mode.setChecked(False)
+            else:
+                self.action_service_mode.setChecked(False)
+        else:
+            tab.set_service_mode(False)
+
+    def _on_tab_changed(self, index: int) -> None:
+        tab = self.ui.device_tabs.widget(index)
+        if isinstance(tab, DeviceTab):
+            self.action_service_mode.setChecked(tab.service_mode)
+        else:
+            self.action_service_mode.setChecked(False)
+
+    def update_service_mode_action(self) -> None:
+        tab = self.ui.device_tabs.currentWidget()
+        if isinstance(tab, DeviceTab):
+            self.action_service_mode.setChecked(tab.service_mode)
 
     def hide_tabs(self):
         """Collapse the devices group box and resize the window when all tabs are closed."""

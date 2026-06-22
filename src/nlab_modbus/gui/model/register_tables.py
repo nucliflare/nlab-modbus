@@ -25,6 +25,7 @@ class RegisterRow:
     name: str
     value: int = 0
     plot_enabled: bool = False
+    password_protected: bool = False
 
 
 class HoldingRegisterTableModel(QAbstractTableModel):
@@ -51,6 +52,7 @@ class HoldingRegisterTableModel(QAbstractTableModel):
     ) -> None:
         super().__init__(parent)
         self._rows = rows or []
+        self._service_mode = False
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         if parent.isValid():
@@ -102,6 +104,10 @@ class HoldingRegisterTableModel(QAbstractTableModel):
 
         return None
 
+    def set_service_mode(self, enabled: bool) -> None:
+        self._service_mode = enabled
+        self.layoutChanged.emit()
+
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
@@ -109,7 +115,9 @@ class HoldingRegisterTableModel(QAbstractTableModel):
         flags = Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
         if index.column() == self.COL_VALUE:
-            flags |= Qt.ItemFlag.ItemIsEditable
+            row = self._rows[index.row()]
+            if not row.password_protected or self._service_mode:
+                flags |= Qt.ItemFlag.ItemIsEditable
 
         return flags
 
