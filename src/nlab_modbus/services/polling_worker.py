@@ -159,7 +159,7 @@ class DevicePollingThread(QThread):
 
         if did_write and not self._stop_event.is_set():
             try:
-                holding_values = self.device.get_all_holding_registers()
+                holding_values = self.device.get_all_holding_registers(raw=True)
             except Exception as exc:
                 # A failed readback must NOT escape into run() and kill the loop.
                 logger.exception("Holding readback failed for device %s", self.device)
@@ -168,14 +168,8 @@ class DevicePollingThread(QThread):
                 self.holding_registers_updated.emit(holding_values)
 
     def _execute_write(self, command: RegisterWriteCommand) -> None:
-        """Perform one hardware write, going through the device's encode path.
-
-        device.write() runs encode() then write_raw(), both under bus_lock, so
-        a GUI engineering value (e.g. a voltage) is converted to raw counts
-        correctly. If your GUI hands you raw register words instead, replace
-        this with: self.device.write_raw(command.register_name, [int(command.new_value)])
-        """
-        self.device.write(command.register_name, command.new_value)
+        """Write one raw register value to the device (no scaling)."""
+        self.device.write(command.register_name, command.new_value, raw=True)
 
     # ---- read path ------------------------------------------------------
 
@@ -183,7 +177,7 @@ class DevicePollingThread(QThread):
         """Poll input registers once and emit a timestamped snapshot."""
         try:
             t_elapsed = time.perf_counter() - self._t0
-            input_values = self.device.get_all_input_registers()
+            input_values = self.device.get_all_input_registers(raw=True)
         except Exception as exc:
             logger.exception("Polling failed for device %s", self.device)
             self.polling_failed.emit(str(exc))

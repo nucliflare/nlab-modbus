@@ -56,17 +56,25 @@ class BaseModbusDevice:
 
     # ---- high-level read/write -----------------------------------------
 
-    def read(self, name: str) -> Any:
-        """Read one named register and return its decoded engineering value."""
-        spec = self._get_spec(name)
-        raw = self.read_raw(name)
-        return self.decode(raw, spec)
+    def read(self, name: str, *, raw: bool = False) -> Any:
+        """Read one named register and return its decoded value.
 
-    def write(self, name: str, value: Any) -> None:
-        """Encode an engineering value and write it to the named holding register."""
+        If *raw* is True, return the sign-extended integer as stored in the
+        register (no scaling).
+        """
         spec = self._get_spec(name)
-        raw = self.encode(value, spec)
-        self.write_raw(name, raw)
+        raw_regs = self.read_raw(name)
+        return self.decode(raw_regs, spec, raw_mode=raw)
+
+    def write(self, name: str, value: Any, *, raw: bool = False) -> None:
+        """Encode a value and write it to the named holding register.
+
+        If *raw* is True, *value* is treated as a raw register integer —
+        scaling is skipped.
+        """
+        spec = self._get_spec(name)
+        raw_regs = self.encode(value, spec, raw_mode=raw)
+        self.write_raw(name, raw_regs)
 
     # ---- primitive transactions (the only methods that touch the wire) --
 
@@ -153,20 +161,27 @@ class BaseModbusDevice:
 
     # ---- codec ----------------------------------------------------------
 
-    def decode(self, raw: list[int], spec: RegisterSpec) -> Any:
-        """Convert raw Modbus word(s) to a Python engineering value.
+    def decode(self, raw: list[int], spec: RegisterSpec, raw_mode: bool = False) -> Any:
+        """Convert raw Modbus word(s) to a Python value.
 
         int16 values transmitted as unsigned 16-bit words are sign-extended
         before the scale factor is applied. bool registers return a Python bool.
+
+        If *raw_mode* is True, sign-extension is still applied but scaling is
+        skipped — the value is returned as the firmware stores it.
         """
         if spec.dtype == "uint16":
             value = raw[0]
+            if raw_mode:
+                return value
             return value if spec.scale == 1.0 else value * spec.scale
 
         if spec.dtype == "int16":
             value = raw[0]
             if value >= 0x8000:
                 value -= 0x10000
+            if raw_mode:
+                return value
             return value if spec.scale == 1.0 else value * spec.scale
 
         if spec.dtype == "bool":
@@ -174,21 +189,24 @@ class BaseModbusDevice:
 
         raise NotImplementedError(f"Unsupported dtype for decoding: {spec.dtype}")
 
-    def encode(self, value: Any, spec: RegisterSpec) -> list[int]:
-        """Convert a Python engineering value to raw Modbus 16-bit word(s).
+    def encode(self, value: Any, spec: RegisterSpec, raw_mode: bool = False) -> list[int]:
+        """Convert a Python value to raw Modbus 16-bit word(s).
 
-        Applies the inverse scale (rounds to nearest integer count), validates
-        against spec.min/max, and wraps negative int16 values into their
-        unsigned 16-bit two's complement form before transmission.
+        If *raw_mode* is False (default), applies the inverse scale and rounds
+        to the nearest integer count.  If True, *value* is treated as a raw
+        register integer and scaling is skipped.
+
+        In both modes the value is range-checked and negative int16 values are
+        wrapped into their unsigned 16-bit two's complement form.
         """
         if spec.dtype == "uint16":
-            raw_value = int(round(value / spec.scale))
+            raw_value = int(value) if raw_mode else int(round(value / spec.scale))
             if not 0 <= raw_value <= 0xFFFF:
                 raise ValueError(f"Encoded uint16 value out of range: {raw_value}")
             return [raw_value]
 
         if spec.dtype == "int16":
-            raw_value = int(round(value / spec.scale))
+            raw_value = int(value) if raw_mode else int(round(value / spec.scale))
             if not -0x8000 <= raw_value <= 0x7FFF:
                 raise ValueError(f"Encoded int16 value out of range: {raw_value}")
             if raw_value < 0:
@@ -234,22 +252,22 @@ class BaseModbusDevice:
 
     # ---- composite reads (issue many transactions) ---------------------
 
-    def get_all_holding_registers(self) -> dict:
+    def get_all_holding_registers(self, *, raw: bool = False) -> dict:
         """All holding register values, coherent w.r.t. other bus traffic."""
         result = {}
         with self.bus_transaction():
             for reg_name, spec in self.REGISTER_MAP.items():
                 if spec.reg_type == RegisterType.HOLDING:
-                    result[reg_name] = int(self.read(reg_name))
+                    result[reg_name] = int(self.read(reg_name, raw=raw))
         return result
 
-    def get_all_input_registers(self) -> dict:
+    def get_all_input_registers(self, *, raw: bool = False) -> dict:
         """All input register values, coherent w.r.t. other bus traffic."""
         result = {}
         with self.bus_transaction():
             for reg_name, spec in self.REGISTER_MAP.items():
                 if spec.reg_type == RegisterType.INPUT:
-                    result[reg_name] = self.read(reg_name)
+                    result[reg_name] = self.read(reg_name, raw=raw)
         return result
 
     def get_status(self) -> str:

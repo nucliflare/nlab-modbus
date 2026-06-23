@@ -51,11 +51,11 @@ class DeviceTab(QWidget):
         # self.main_plot = None
 
         input_registers = []
-        for i, (register, value) in enumerate(self.device.get_all_input_registers().items()):
+        for i, (register, value) in enumerate(self.device.get_all_input_registers(raw=True).items()):
             self.input_register_buffer[register] = NumpyRingBuffer(1000)
             input_registers.append(RegisterRow(i, register, value))
         holding_registers = []
-        for i, (name, value) in enumerate(self.device.get_all_holding_registers().items()):
+        for i, (name, value) in enumerate(self.device.get_all_holding_registers(raw=True).items()):
             spec = self.device.REGISTER_MAP[name]
             holding_registers.append(
                 RegisterRow(i, name, value, password_protected=spec.password_protected)

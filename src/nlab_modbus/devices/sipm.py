@@ -25,12 +25,12 @@ class SiPMDevice(BaseModbusDevice):
         self.device_type: DeviceType = DeviceType.SIPM
         self._register_index = build_register_index(SiPMDevice.REGISTER_MAP)
 
-    def read_snapshot(self) -> dict[str, int | float]:
+    def read_snapshot(self, *, raw: bool = False) -> dict[str, int | float]:
         """Read the key input registers (addresses 3–21) in one FC04 transaction.
 
         Skips the first two input registers (hardware_version, firmware_version)
         because they never change at runtime and are fetched once on connect.
-        Returns a dict of register_name → scaled engineering value.
+        Returns a dict of register_name → value.
         """
         count = SiPMDevice.READOUT_STOP - SiPMDevice.READOUT_START
         registers = self.read_raw_block(address=SiPMDevice.READOUT_START, count=count)
@@ -40,6 +40,7 @@ class SiPMDevice(BaseModbusDevice):
             start_address=SiPMDevice.READOUT_START,
             register_type=RegisterType.INPUT,
             register_index=self._register_index,
+            raw=raw,
         )
 
     # Holding register getters and setters

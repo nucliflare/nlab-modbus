@@ -24,11 +24,11 @@ class PSUDevice(BaseModbusDevice):
         self.device_type: DeviceType = DeviceType.PSU
         self._register_index = build_register_index(PSUDevice.REGISTER_MAP)
 
-    def read_snapshot(self) -> dict[str, int | float]:
+    def read_snapshot(self, *, raw: bool = False) -> dict[str, int | float]:
         """Read the key input registers (addresses 3–15) in one FC04 transaction.
 
-        Returns a dict of register_name → scaled engineering value for the
-        live operating parameters (HV output, current, temps, duty cycle).
+        Returns a dict of register_name → value for the live operating
+        parameters (HV output, current, temps, duty cycle).
         """
         count = PSUDevice.READOUT_STOP - PSUDevice.READOUT_START
         registers = self.read_raw_block(address=PSUDevice.READOUT_START, count=count)
@@ -38,6 +38,7 @@ class PSUDevice(BaseModbusDevice):
             start_address=PSUDevice.READOUT_START,
             register_type=RegisterType.INPUT,
             register_index=self._register_index,
+            raw=raw,
         )
 
     # Holding register getters and setters

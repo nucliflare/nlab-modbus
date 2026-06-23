@@ -125,8 +125,8 @@ class HoldingRegisterTableModel(QAbstractTableModel):
         """Accept a user edit on the Value column and emit write_requested.
 
         Rejects the edit silently if the value can't be parsed as an integer or
-        falls outside the 0–0xFFFF uint16 range.  No-ops if the value is unchanged
-        to avoid spurious writes to the device.
+        falls outside the int16 range.  No-ops if the value is unchanged to
+        avoid spurious writes to the device.
         """
         if not index.isValid() or role != Qt.ItemDataRole.EditRole:
             return False
@@ -137,7 +137,7 @@ class HoldingRegisterTableModel(QAbstractTableModel):
             new_value = int(float(str(value).strip()))
         except (ValueError, TypeError):
             return False
-        if not 0 <= new_value <= 0xFFFF:
+        if not -0x8000 <= new_value <= 0x7FFF:
             return False
         if new_value == row.value:
             return True

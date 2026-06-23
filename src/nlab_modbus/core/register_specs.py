@@ -70,18 +70,23 @@ def build_register_index(register_map: dict[str, RegisterSpec]) -> dict[Register
     return index
 
 
-def decode_register_value(raw_value: int, spec: RegisterSpec) -> int | float:
+def decode_register_value(raw_value: int, spec: RegisterSpec, *, raw: bool = False) -> int | float:
     """Convert one raw Modbus register word to an engineering value.
 
     int16 registers are transmitted as unsigned 16-bit words by Modbus; values
     ≥ 0x8000 are re-interpreted as negative using two's complement before the
     scale factor is applied.
+
+    If *raw* is True, sign-extension is still applied but scaling is skipped,
+    returning the raw integer as the firmware stores it.
     """
     value = raw_value
 
     if spec.dtype == "int16" and value >= 0x8000:
         value -= 0x10000
 
+    if raw:
+        return value
     return value if spec.scale == 1.0 else value * spec.scale
 
 
@@ -91,6 +96,7 @@ def decode_register_block(
     start_address: int,
     register_type: RegisterType,
     register_index: dict[RegisterKey, tuple[str, RegisterSpec]],
+    raw: bool = False,
 ) -> dict[str, int | float]:
     """Decode a contiguous list of raw register words into named engineering values.
 
@@ -117,6 +123,6 @@ def decode_register_block(
             continue
 
         name, spec = match
-        decoded[name] = decode_register_value(raw_value, spec)
+        decoded[name] = decode_register_value(raw_value, spec, raw=raw)
 
     return decoded

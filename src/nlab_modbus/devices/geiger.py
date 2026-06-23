@@ -29,12 +29,12 @@ class GeigerDevice(BaseModbusDevice):
         self.device_type: DeviceType = DeviceType.GEIGER
         self._register_index = build_register_index(GeigerDevice.REGISTER_MAP)
 
-    def read_snapshot(self) -> dict[str, int | float]:
+    def read_snapshot(self, *, raw: bool = False) -> dict[str, int | float]:
         """Read the key input registers (addresses 3–19) in one FC04 transaction.
 
         Skips hardware_version and firmware_version (addresses 0–1) and the
         raw pulse counter (address 2) which overflows frequently and is instead
-        tracked via pulses_per_sec.  Returns a dict of name → engineering value.
+        tracked via pulses_per_sec.  Returns a dict of name → value.
         """
         count = GeigerDevice.READOUT_STOP - GeigerDevice.READOUT_START
         registers = self.read_raw_block(address=GeigerDevice.READOUT_START, count=count)
@@ -44,6 +44,7 @@ class GeigerDevice(BaseModbusDevice):
             start_address=GeigerDevice.READOUT_START,
             register_type=RegisterType.INPUT,
             register_index=self._register_index,
+            raw=raw,
         )
 
     # Holding register getters and setters
