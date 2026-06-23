@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import random
 
 import pyqtgraph as pg
@@ -11,6 +12,9 @@ from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
 from nlab_modbus.gui.model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, RegisterRow
 from nlab_modbus.gui.model.ring_buffer import NumpyRingBuffer
 from nlab_modbus.services.polling_worker import DevicePollingThread
+
+
+logger = logging.getLogger(__name__)
 
 
 class DeviceTab(QWidget):
@@ -197,18 +201,10 @@ class DeviceTab(QWidget):
             self.holding_model.update_value(row_index, value)
 
     def on_device_polling_failed(self, error: str):
-        """Slot: display a poll error in the main window status bar."""
-        msg = f"{self.device.connection_info()}, poll failed: {error}"
-        self.main_widget.statusBar().showMessage(msg)
+        logger.warning("%s poll failed: %s", self.device.connection_info(), error)
 
     def on_device_write_failed(self, error: str):
-        """Slot: display a write error in the main window status bar.
-
-        If the error looks like a password rejection (Modbus exception code 4),
-        prompt the user for the service password again.
-        """
-        msg = f"{self.device.connection_info()}, write failed: {error}"
-        self.main_widget.statusBar().showMessage(msg)
+        logger.error("%s write failed: %s", self.device.connection_info(), error)
         if "exception_code=4" in error:
             self._prompt_service_password()
 
@@ -234,7 +230,7 @@ class DeviceTab(QWidget):
                 self.set_service_mode(True)
                 self.main_widget.update_service_mode_action()
             except Exception as exc:
-                self.main_widget.statusBar().showMessage(f"Password write failed: {exc}")
+                logger.error("Password write failed: %s", exc)
 
     @Slot(int, str, int)
     def holding_write_requested(self, register_id: int, register_name: str, new_value: int) -> None:

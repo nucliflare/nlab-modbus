@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import logging
 import sys
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from PySide6.QtWidgets import QApplication
 
 from nlab_modbus import __version__
 from nlab_modbus.gui.controller.main_controller import ModbusMainWindow
+from nlab_modbus.gui.model.log_handler import QtLogHandler
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -35,7 +37,12 @@ def main() -> int:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     app = QApplication(sys.argv)
 
-    window = ModbusMainWindow()
+    log_handler = QtLogHandler()
+    root_logger = logging.getLogger("nlab_modbus")
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(log_handler)
+
+    window = ModbusMainWindow(log_handler=log_handler)
     window.show()
 
     app.setWindowIcon(QIcon(str(_find_icon())))

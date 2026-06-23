@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from PySide6.QtCore import QTimer
@@ -8,7 +9,6 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QMainWindow,
     QMessageBox,
-    QStatusBar,
     QWidget,
 )
 
@@ -18,7 +18,10 @@ from nlab_modbus.core.enums import DeviceType
 from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_boards, scan_remote_modbus_devices
 from nlab_modbus.gui.controller.tab_controller import DeviceTab
 from nlab_modbus.gui.generated.ui_main_window import Ui_MainWindow
+from nlab_modbus.gui.model.log_handler import LogStatusBar, QtLogHandler
 from nlab_modbus.services.manager import DeviceManager
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -35,8 +38,9 @@ class ModbusMainWindow(QMainWindow):
     switches focus to the existing tab instead.
     """
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, log_handler: QtLogHandler | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._log_handler = log_handler
 
         self.central = QWidget(self)
 
@@ -78,6 +82,7 @@ class ModbusMainWindow(QMainWindow):
         self.action_disconnect_tab.triggered.connect(self.on_disconnect_tab_clicked)
         self.action_disconnect_all.triggered.connect(self.on_disconnect_all_clicked)
         self.action_clear_plot.triggered.connect(self.on_clear_plot_clicked)
+        self.action_debug_mode.triggered.connect(self._on_debug_mode_toggled)
         self.action_service_mode.triggered.connect(self.on_service_mode_toggled)
         self.ui.device_tabs.currentChanged.connect(self._on_tab_changed)
         self.ui.port_select.currentIndexChanged.connect(self._update_comboboxes)
@@ -142,7 +147,10 @@ class ModbusMainWindow(QMainWindow):
         connection_menu.addAction(self.action_disconnect_all)
 
         self.action_clear_plot = QAction("&Clear Plot", self)
+        self.action_debug_mode = QAction("&Debug Mode", self)
+        self.action_debug_mode.setCheckable(True)
         view_menu.addAction(self.action_clear_plot)
+        view_menu.addAction(self.action_debug_mode)
 
         self.action_service_mode = QAction("&Service Mode", self)
         self.action_service_mode.setCheckable(True)
@@ -155,10 +163,13 @@ class ModbusMainWindow(QMainWindow):
         help_menu.addAction(self.action_licenses)
 
     def _setup_status_bar(self) -> None:
-        """Create and attach the status bar, initially showing 'Ready'."""
-        status_bar = QStatusBar(self)
-        self.setStatusBar(status_bar)
+        """Replace the default status bar with a log-aware one.
 
+        Double-click the status bar to open the full application log.
+        """
+        if self._log_handler is not None:
+            self._log_status_bar = LogStatusBar(self._log_handler, self)
+            self.setStatusBar(self._log_status_bar)
         self.statusBar().showMessage("Ready")
 
     def scan_for_available_devices(self) -> None:
@@ -262,6 +273,10 @@ class ModbusMainWindow(QMainWindow):
         if isinstance(tab, DeviceTab):
             tab.clear_buffers()
 
+    def _on_debug_mode_toggled(self, checked: bool) -> None:
+        if hasattr(self, "_log_status_bar"):
+            self._log_status_bar.set_debug_mode(checked)
+
     def on_service_mode_toggled(self, checked: bool) -> None:
         tab = self.ui.device_tabs.currentWidget()
         if not isinstance(tab, DeviceTab):
@@ -281,7 +296,7 @@ class ModbusMainWindow(QMainWindow):
                     )
                     tab.set_service_mode(True)
                 except Exception as exc:
-                    self.statusBar().showMessage(f"Password write failed: {exc}")
+                    logger.error("Password write failed: %s", exc)
                     self.action_service_mode.setChecked(False)
             else:
                 self.action_service_mode.setChecked(False)
