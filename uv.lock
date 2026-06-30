@@ -1310,14 +1310,11 @@ wheels = [
 
 [[package]]
 name = "nlab-modbus"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
     { name = "pymodbus" },
-    { name = "pyqtgraph" },
     { name = "pyserial" },
-    { name = "pyside6" },
     { name = "zeroconf" },
 ]
 
@@ -1332,6 +1329,10 @@ dev = [
     { name = "matplotlib" },
     { name = "pip-licenses" },
 ]
+gui = [
+    { name = "pyqtgraph" },
+    { name = "pyside6" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1342,13 +1343,13 @@ requires-dist = [
     { name = "ordered-set", marker = "extra == 'build'", specifier = "==4.1.0" },
     { name = "pip-licenses", marker = "extra == 'dev'", specifier = "==5.5.5" },
     { name = "pymodbus", specifier = "==3.13.0" },
-    { name = "pyqtgraph", specifier = "==0.14.0" },
+    { name = "pyqtgraph", marker = "extra == 'gui'", specifier = "==0.14.0" },
     { name = "pyserial", specifier = "==3.5" },
-    { name = "pyside6", specifier = "==6.11.1" },
+    { name = "pyside6", marker = "extra == 'gui'", specifier = "==6.11.1" },
     { name = "zeroconf", specifier = "==0.149.16" },
     { name = "zstandard", marker = "extra == 'build'", specifier = "==0.25.0" },
 ]
-provides-extras = ["dev", "build"]
+provides-extras = ["gui", "dev", "build"]
 
 [[package]]
 name = "notebook"

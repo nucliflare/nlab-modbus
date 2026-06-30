@@ -16,12 +16,14 @@ dependencies = [
     "pymodbus==3.13.0",
     "pyserial==3.5",
     "zeroconf==0.149.16",
-    "pyqtgraph==0.14.0",
-    "PySide6==6.11.1",
     "numpy==2.4.6",
 ]
 
 [project.optional-dependencies]
+gui = [
+    "pyqtgraph==0.14.0",
+    "PySide6==6.11.1",
+]
 dev = [
     "matplotlib==3.10.9",
     "pip-licenses==5.5.5",
