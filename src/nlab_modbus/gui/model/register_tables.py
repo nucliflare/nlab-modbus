@@ -19,6 +19,7 @@ class RegisterRow:
     register_id maps to the Modbus address so updates from the polling thread
     can locate the correct row without a full linear scan on every poll cycle.
     plot_enabled is only meaningful for input registers.
+    min_val/max_val constrain editable input in the holding register table.
     """
 
     register_id: int
@@ -26,6 +27,8 @@ class RegisterRow:
     value: int = 0
     plot_enabled: bool = False
     password_protected: bool = False
+    min_val: int = -0x8000
+    max_val: int = 0x7FFF
 
 
 class HoldingRegisterTableModel(QAbstractTableModel):
@@ -137,7 +140,7 @@ class HoldingRegisterTableModel(QAbstractTableModel):
             new_value = int(float(str(value).strip()))
         except (ValueError, TypeError):
             return False
-        if not -0x8000 <= new_value <= 0x7FFF:
+        if not row.min_val <= new_value <= row.max_val:
             return False
         if new_value == row.value:
             return True

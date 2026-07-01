@@ -58,7 +58,12 @@ class DeviceTab(QWidget):
         for i, (name, value) in enumerate(self.device.get_all_holding_registers(raw=True).items()):
             spec = self.device.REGISTER_MAP[name]
             holding_registers.append(
-                RegisterRow(i, name, value, password_protected=spec.password_protected)
+                RegisterRow(
+                    i, name, value,
+                    password_protected=spec.password_protected,
+                    min_val=spec.min,
+                    max_val=spec.max,
+                )
             )
         self.holding_model = HoldingRegisterTableModel(holding_registers)
         self.input_model = InputRegisterTableModel(input_registers)
