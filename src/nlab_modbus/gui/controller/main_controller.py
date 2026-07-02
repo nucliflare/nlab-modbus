@@ -174,8 +174,9 @@ class ModbusMainWindow(QMainWindow):
 
     def scan_for_available_devices(self) -> None:
         """Scan for available local COM ports and remote boards via mDNS."""
-        logger.info("=== Device scan started ===")
-        local_devices = scan_local_modbus_devices(device_ids=range(1, 254))
+        baudrate = int(self.ui.baudrate_select.currentText())
+        logger.info("=== Device scan started (baudrate=%d) ===", baudrate)
+        local_devices = scan_local_modbus_devices(device_ids=range(1, 254), baudrate=baudrate)
         self.ui.port_select.clear()
 
         for item in local_devices:
