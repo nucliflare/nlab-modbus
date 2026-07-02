@@ -41,9 +41,12 @@ def scan_local_modbus_devices(
     silently times out in one slot rather than blocking the scan for seconds.
     """
     found: list[dict] = []
+    all_ports = list(list_ports.comports())
+    logger.info("Local scan: found %d serial port(s): %s", len(all_ports), [p.device for p in all_ports])
 
-    for port_info in list_ports.comports():
+    for port_info in all_ports:
         port = port_info.device
+        logger.debug("Probing %s (%s) at %d baud", port, port_info.description, baudrate)
 
         client = ModbusSerialClient(
             port=port,
@@ -58,6 +61,7 @@ def scan_local_modbus_devices(
 
         try:
             if not client.connect():
+                logger.warning("Could not open %s — skipping", port)
                 continue
 
             for device_id in device_ids:
@@ -72,10 +76,15 @@ def scan_local_modbus_devices(
                         continue
 
                     hardware_id = int(result.registers[0])
+                    try:
+                        device_type = DeviceType(hardware_id)
+                    except ValueError:
+                        logger.warning("%s id=%d: unknown hardware_version=0x%04X — skipped", port, device_id, hardware_id)
+                        continue
 
                     found.append(
                         {
-                            "type": DeviceType(hardware_id),
+                            "type": device_type,
                             "device_id": device_id,
                             "host": None,
                             "port": port,
@@ -83,7 +92,7 @@ def scan_local_modbus_devices(
                             "hardware_id": hardware_id,
                         }
                     )
-                    logger.info(f"Register found: {result.registers[0]}")
+                    logger.info("Found %s id=%d type=%s on %s", port, device_id, device_type.name, port_info.description)
 
                 except (ModbusException, OSError, ValueError):
                     continue
@@ -91,6 +100,7 @@ def scan_local_modbus_devices(
         finally:
             client.close()
 
+    logger.info("Local scan complete: %d device(s) found", len(found))
     return found
 
 
@@ -113,6 +123,7 @@ def scan_remote_modbus_devices(
         candidate_ids = range(1, 17)  # 1 .. 16
 
     found: list[dict] = []
+    logger.info("Remote scan: probing %s:%s for device IDs %s", host, port, list(candidate_ids))
 
     for device_id in candidate_ids:
         client = ModbusTcpClient(
@@ -123,20 +134,26 @@ def scan_remote_modbus_devices(
         )
         try:
             client.connect()
-            # Probe the hardware_version input register (address 0)
             result = client.read_input_registers(
                 address=0,
                 count=1,
                 device_id=device_id,
             )
             if not result.isError():
-                logger.info(f"Register found: {result.registers[0]}")
-                found.append({"type": DeviceType(int(result.registers[0])), "device_id": device_id, "host": host, "port": port})
+                hardware_id = int(result.registers[0])
+                try:
+                    device_type = DeviceType(hardware_id)
+                except ValueError:
+                    logger.warning("%s:%s id=%d: unknown hardware_version=0x%04X — skipped", host, port, device_id, hardware_id)
+                    continue
+                found.append({"type": device_type, "device_id": device_id, "host": host, "port": port})
+                logger.info("Found %s:%s id=%d type=%s", host, port, device_id, device_type.name)
         except Exception:
-            pass  # silently skip unresponsive IDs
+            pass
         finally:
             client.close()
 
+    logger.info("Remote scan %s:%s complete: %d device(s) found", host, port, len(found))
     return found
 
 
@@ -185,5 +202,8 @@ def scan_remote_boards(
         zc.close()
 
     ips = [items["addresses"][0] for name, items in found.items()]
-
+    if ips:
+        logger.info("mDNS scan found %d board(s): %s", len(ips), ips)
+    else:
+        logger.info("mDNS scan found no boards (filter=%r, timeout=%.1fs)", name_filter, timeout)
     return ips

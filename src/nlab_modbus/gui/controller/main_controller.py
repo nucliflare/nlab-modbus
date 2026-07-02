@@ -173,8 +173,9 @@ class ModbusMainWindow(QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def scan_for_available_devices(self) -> None:
-        """Scan for available local COM ports"""
-        local_devices = scan_local_modbus_devices()
+        """Scan for available local COM ports and remote boards via mDNS."""
+        logger.info("=== Device scan started ===")
+        local_devices = scan_local_modbus_devices(device_ids=range(1, 254))
         self.ui.port_select.clear()
 
         for item in local_devices:
@@ -209,6 +210,9 @@ class ModbusMainWindow(QMainWindow):
 
         self.available_devices["remote"] = found_devices
         self._update_comboboxes()
+        logger.info("=== Device scan complete — local ports: %s, remote hosts: %s ===",
+                    list(self.available_devices["local"].keys()),
+                    list(self.available_devices["remote"].keys()))
 
     def _update_comboboxes(self):
         """Refresh device-ID dropdowns to match the currently selected port / host."""
@@ -284,16 +288,17 @@ class ModbusMainWindow(QMainWindow):
             return
         if checked:
             password, ok = QInputDialog.getInt(
-                self, "Service Password",
+                self,
+                "Service Password",
                 "Enter the service password:",
-                0, -32767, 32767,
+                0,
+                -32767,
+                32767,
             )
             if ok:
                 try:
                     tab.device.write("pass_static", password)
-                    tab.holding_model.update_value(
-                        tab.device.get_register_address("pass_static"), password
-                    )
+                    tab.holding_model.update_value(tab.device.get_register_address("pass_static"), password)
                     tab.set_service_mode(True)
                 except Exception as exc:
                     logger.error("Password write failed: %s", exc)
