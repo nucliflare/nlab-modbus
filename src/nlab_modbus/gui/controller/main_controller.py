@@ -38,7 +38,13 @@ class ModbusMainWindow(QMainWindow):
     switches focus to the existing tab instead.
     """
 
-    def __init__(self, log_handler: QtLogHandler | None = None, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        log_handler: QtLogHandler | None = None,
+        initial_baudrate: int = 115200,
+        scan_id_range: range = range(1, 17),
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self._log_handler = log_handler
 
@@ -55,10 +61,23 @@ class ModbusMainWindow(QMainWindow):
         }
         self.manager = DeviceManager()
         self._open_devices: dict[BaseModbusDevice, DeviceTab] = {}
+        self._scan_id_range = scan_id_range
+        self._apply_initial_baudrate(initial_baudrate)
         self._setup_window()
         self._setup_menu_bar()
         self._setup_status_bar()
         self._connect_signals()
+
+    def _apply_initial_baudrate(self, baudrate: int) -> None:
+        """Pre-select a baud rate in the combo before the first scan runs."""
+        combo = self.ui.baudrate_select
+        index = combo.findText(str(baudrate))
+        if index >= 0:
+            combo.setCurrentIndex(index)
+        else:
+            combo.insertItem(0, str(baudrate))
+            combo.setCurrentIndex(0)
+            logger.warning("Baud rate %d not in combo list — added dynamically", baudrate)
 
     def _setup_window(self) -> None:
         """
@@ -175,8 +194,9 @@ class ModbusMainWindow(QMainWindow):
     def scan_for_available_devices(self) -> None:
         """Scan for available local COM ports and remote boards via mDNS."""
         baudrate = int(self.ui.baudrate_select.currentText())
-        logger.info("=== Device scan started (baudrate=%d) ===", baudrate)
-        local_devices = scan_local_modbus_devices(device_ids=range(1, 254), baudrate=baudrate)
+        logger.info("=== Device scan started (baudrate=%d, id range=%d–%d) ===",
+                    baudrate, self._scan_id_range.start, self._scan_id_range.stop - 1)
+        local_devices = scan_local_modbus_devices(device_ids=self._scan_id_range, baudrate=baudrate)
         self.ui.port_select.clear()
 
         for item in local_devices:

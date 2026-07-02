@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import ctypes
 import logging
 import sys
@@ -32,6 +33,24 @@ def main() -> int:
     Sets a Windows AppUserModelID so the taskbar icon matches the window icon
     rather than the generic Python launcher icon.
     """
+    parser = argparse.ArgumentParser(description="nlab Modbus Monitor GUI")
+    parser.add_argument(
+        "--baudrate", type=int, default=115200,
+        metavar="BAUD",
+        help="Serial baud rate used for the initial device scan (default: 115200)",
+    )
+    parser.add_argument(
+        "--start-id", type=int, default=1,
+        metavar="ID",
+        help="First Modbus device ID to probe during scan (default: 1)",
+    )
+    parser.add_argument(
+        "--end-id", type=int, default=16,
+        metavar="ID",
+        help="Last Modbus device ID to probe during scan (default: 253)",
+    )
+    args, _ = parser.parse_known_args()
+
     if sys.platform == "win32":
         myappid = f"EWT.Modbus.Monitor.{__version__}"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
@@ -49,7 +68,7 @@ def main() -> int:
 
     logging.getLogger("nlab_modbus").info("Starting nlab-modbus-gui v%s", __version__)
 
-    window = ModbusMainWindow(log_handler=log_handler)
+    window = ModbusMainWindow(log_handler=log_handler, initial_baudrate=args.baudrate, scan_id_range=range(args.start_id, args.end_id + 1))
     window.show()
 
     app.setWindowIcon(QIcon(str(_find_icon())))
