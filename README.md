@@ -8,7 +8,7 @@ A PySide6 desktop application and Python library for monitoring and controlling 
 
 | Device | `DeviceType` | Hardware version | Description |
 |---|---|---|---|
-| SiPM board | `SIPM` | 257 | Bias voltage (1.5–7.8 V), temperature compensation, LED driver |
+| SiPM board | `SIPM` | 257 | Bias voltage (15.0–78.0 V), temperature compensation, LED driver |
 | Geiger-Mueller probe | `GEIGER` | 513 | HV generation (50–650 V), pulse counting, dose rate (mSv/h), dose calibration |
 | PMT HV supply | `PSU` | 769 | High-voltage bias for photomultiplier tubes, current monitoring |
 
