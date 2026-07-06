@@ -109,24 +109,64 @@ class ModbusMainWindow(QMainWindow):
         self.ui.remote_port_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.local_btn.clicked.connect(self.on_connect_local_clicked)
         self.ui.remote_btn.clicked.connect(self.on_connect_remote_clicked)
+        self.ui.local_id_select.currentTextChanged.connect(self._auto_select_local_type)
+        self.ui.remote_id_select.currentTextChanged.connect(self._auto_select_remote_type)
+        self.ui.remote_port_select.currentTextChanged.connect(self._auto_select_remote_type)
 
     def on_connect_remote_clicked(self) -> None:
         """Connect to the device selected in the remote (TCP) dropdowns."""
         host = self.ui.host_select.currentText()
         port = self.ui.remote_port_select.currentText()
-        device_id, device_type = self.ui.remote_select.currentText().split()
-        device = self.manager.connect_remote(host, int(port), int(device_id), DeviceType[device_type])
+        device_id = int(self.ui.remote_id_select.currentText())
+        device_type = self.ui.remote_type_select.currentText()
+        try:
+            device = self.manager.connect_remote(host, int(port), device_id, DeviceType[device_type])
+        except Exception as exc:
+            QMessageBox.critical(self, "Connection Failed", f"Could not connect to {host}:{port} id={device_id}:\n{exc}")
+            return
+        if not self._check_hardware_version(device, device_type):
+            return
         self.add_device_tab(device)
 
     def on_connect_local_clicked(self) -> None:
-        """
-        Local Modbus connection handler.
-        """
+        """Local Modbus connection handler."""
         port = self.ui.port_select.currentText()
         baudrate = int(self.ui.baudrate_select.currentText())
-        device_id, device_type = self.ui.local_select.currentText().split()
-        device = self.manager.connect_local(port, int(device_id), DeviceType[device_type], baudrate, parity="N", stopbits=1)
+        device_id = int(self.ui.local_id_select.currentText())
+        device_type = self.ui.local_type_select.currentText()
+        try:
+            device = self.manager.connect_local(port, device_id, DeviceType[device_type], baudrate, parity="N", stopbits=1)
+        except Exception as exc:
+            QMessageBox.critical(self, "Connection Failed", f"Could not connect to {port} id={device_id}:\n{exc}")
+            return
+        if not self._check_hardware_version(device, device_type):
+            return
         self.add_device_tab(device)
+
+    def _check_hardware_version(self, device, selected_type: str) -> bool:
+        """Read hardware_version and confirm with the user on mismatch.
+
+        Returns True if the tab should be opened, False if the user cancelled.
+        """
+        try:
+            hw_version = device.read("hardware_version")
+            expected = DeviceType[selected_type]
+            if hw_version != expected.value:
+                actual_name = next((t.name for t in DeviceType if t.value == hw_version), f"unknown (0x{hw_version:04X})")
+                answer = QMessageBox.question(
+                    self,
+                    "Device Type Mismatch",
+                    f"Selected type: {selected_type}\n"
+                    f"Hardware reports: {actual_name} (version={hw_version})\n\n"
+                    "The register map may not match the device.\n"
+                    "Open tab anyway?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                return answer == QMessageBox.StandardButton.Yes
+        except Exception as exc:
+            logger.warning("Could not verify hardware version: %s", exc)
+        return True
 
     def add_device_tab(self, device):
         """Open a DeviceTab for device, or bring the existing tab to front."""
@@ -199,31 +239,24 @@ class ModbusMainWindow(QMainWindow):
 
         for item in local_devices:
             port = item["port"]
-            dev_id = item["device_id"]
-            dev_name = item["type"].name
+            dev_id = str(item["device_id"])
             if port not in self.available_devices["local"]:
-                self.available_devices["local"][port] = []
-
-            self.available_devices["local"][port].append(f"{dev_id} {dev_name}")
+                self.available_devices["local"][port] = {}
+            self.available_devices["local"][port][dev_id] = item["type"].name
 
         local_ports = list(self.available_devices["local"].keys())
         self.ui.port_select.clear()
         self.ui.port_select.addItems(local_ports)
-
-        if local_ports:
-            self.ui.local_select.addItems(self.available_devices["local"][local_ports[0]])
         found_devices = {}
         ips = scan_remote_boards()
         for ip in ips:
             found_devices[ip] = {}
             for port in ["5001", "5002"]:
-                found_devices[ip][port] = []
+                found_devices[ip][port] = {}
                 remotes = scan_remote_modbus_devices(ip, int(port))
                 for item in remotes:
-                    dev_id = item["device_id"]
-                    dev_name = item["type"].name
-                    if remotes:
-                        found_devices[ip][port].append(f"{dev_id} {dev_name}")
+                    dev_id = str(item["device_id"])
+                    found_devices[ip][port][dev_id] = item["type"].name
         self.ui.host_select.clear()
         self.ui.host_select.addItems(ips)
 
@@ -236,15 +269,37 @@ class ModbusMainWindow(QMainWindow):
     def _update_comboboxes(self):
         """Refresh device-ID dropdowns to match the currently selected port / host."""
         local_port = self.ui.port_select.currentText()
-        local_ids = self.available_devices["local"].get(local_port, [])
-        self.ui.local_select.clear()
-        self.ui.local_select.addItems(local_ids)
+        local_ids = list(self.available_devices["local"].get(local_port, {}).keys())
+        self.ui.local_id_select.clear()
+        self.ui.local_id_select.addItems(local_ids)
 
         remote_host = self.ui.host_select.currentText()
         remote_port = self.ui.remote_port_select.currentText()
-        remote_ids = self.available_devices["remote"].get(remote_host, {}).get(remote_port, [])
-        self.ui.remote_select.clear()
-        self.ui.remote_select.addItems(remote_ids)
+        remote_ids = list(self.available_devices["remote"].get(remote_host, {}).get(remote_port, {}).keys())
+        self.ui.remote_id_select.clear()
+        self.ui.remote_id_select.addItems(remote_ids)
+
+        self._auto_select_local_type()
+        self._auto_select_remote_type()
+
+    def _auto_select_local_type(self) -> None:
+        port = self.ui.port_select.currentText()
+        dev_id = self.ui.local_id_select.currentText()
+        device_type = self.available_devices["local"].get(port, {}).get(dev_id)
+        if device_type:
+            idx = self.ui.local_type_select.findText(device_type)
+            if idx >= 0:
+                self.ui.local_type_select.setCurrentIndex(idx)
+
+    def _auto_select_remote_type(self) -> None:
+        host = self.ui.host_select.currentText()
+        port = self.ui.remote_port_select.currentText()
+        dev_id = self.ui.remote_id_select.currentText()
+        device_type = self.available_devices["remote"].get(host, {}).get(port, {}).get(dev_id)
+        if device_type:
+            idx = self.ui.remote_type_select.findText(device_type)
+            if idx >= 0:
+                self.ui.remote_type_select.setCurrentIndex(idx)
 
     def on_about_clicked(self) -> None:
         """Show the About dialog."""
