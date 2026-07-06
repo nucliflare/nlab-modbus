@@ -12,17 +12,21 @@ jobs:
         include:
           - name: windows
             runs-on: windows-local
+            python-exe: python
             venv-python: .venv/Scripts/python.exe
             artifact: build/nlab-modbus-gui.exe
           - name: ubuntu
             runs-on: ubuntu-latest
+            python-exe: python3
             venv-python: .venv/bin/python
             artifact: build/nlab-modbus-gui.exe
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python (GitHub-hosted runner only)
+        if: matrix.name == 'ubuntu'
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -35,7 +39,7 @@ jobs:
             libxcb-xinerama0 patchelf
 
       - name: Create venv
-        run: python -m venv .venv
+        run: ${{ matrix.python-exe }} -m venv .venv
 
       - name: Install
         run: |
