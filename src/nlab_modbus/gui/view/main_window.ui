@@ -35,6 +35,13 @@
           </property>
          </widget>
         </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="port_select">
+          <property name="editable">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
         <item row="0" column="2">
          <widget class="QLabel" name="label_5">
           <property name="text">
@@ -42,10 +49,17 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="4">
-         <widget class="QLabel" name="label_type_local">
+        <item row="0" column="3">
+         <widget class="QComboBox" name="local_id_select">
+          <property name="editable">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_2">
           <property name="text">
-           <string>Type</string>
+           <string>Bandwith</string>
           </property>
          </widget>
         </item>
@@ -78,38 +92,14 @@
           </item>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_2">
+        <item row="1" column="2">
+         <widget class="QLabel" name="label_type_local">
           <property name="text">
-           <string>Bandwith</string>
+           <string>Type</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="1">
-         <widget class="QComboBox" name="port_select">
-          <property name="editable">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="6">
-         <widget class="QPushButton" name="local_btn">
-          <property name="text">
-           <string>Connect</string>
-          </property>
-          <property name="styleSheet">
-           <string>background-color: #d4edda; color: #155724;</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="3">
-         <widget class="QComboBox" name="local_id_select">
-          <property name="editable">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="5">
+        <item row="1" column="3">
          <widget class="QComboBox" name="local_type_select">
           <item>
            <property name="text">
@@ -128,6 +118,23 @@
           </item>
          </widget>
         </item>
+        <item row="2" column="2">
+         <widget class="QPushButton" name="scan_local_btn">
+          <property name="text">
+           <string>Scan...</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QPushButton" name="local_btn">
+          <property name="text">
+           <string>Connect</string>
+          </property>
+          <property name="styleSheet">
+           <string>background-color: #d4edda; color: #155724;</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
      </item>
@@ -143,17 +150,24 @@
         <string>Remote connection</string>
        </property>
        <layout class="QGridLayout" name="gridLayout_2">
-        <item row="0" column="2">
-         <widget class="QLabel" name="label_8">
-          <property name="text">
-           <string>Device ID</string>
-          </property>
-         </widget>
-        </item>
         <item row="0" column="0">
          <widget class="QLabel" name="label_6">
           <property name="text">
            <string>Host</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="host_select">
+          <property name="editable">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLabel" name="label_8">
+          <property name="text">
+           <string>Device ID</string>
           </property>
          </widget>
         </item>
@@ -164,53 +178,10 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="4">
-         <widget class="QLabel" name="label_type_remote">
-          <property name="text">
-           <string>Type</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="5">
-         <widget class="QComboBox" name="remote_type_select">
-          <item>
-           <property name="text">
-            <string>SIPM</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>GEIGER</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>PSU</string>
-           </property>
-          </item>
-         </widget>
-        </item>
         <item row="1" column="0">
          <widget class="QLabel" name="label_7">
           <property name="text">
            <string>Port</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="5">
-         <widget class="QPushButton" name="remote_btn">
-          <property name="text">
-           <string>Connect</string>
-          </property>
-          <property name="styleSheet">
-           <string>background-color: #d4edda; color: #155724;</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QComboBox" name="host_select">
-          <property name="editable">
-           <bool>true</bool>
           </property>
          </widget>
         </item>
@@ -229,6 +200,49 @@
             <string>5002</string>
            </property>
           </item>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QLabel" name="label_type_remote">
+          <property name="text">
+           <string>Type</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3">
+         <widget class="QComboBox" name="remote_type_select">
+          <item>
+           <property name="text">
+            <string>SIPM</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>GEIGER</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>PSU</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="QPushButton" name="scan_remote_btn">
+          <property name="text">
+           <string>Scan...</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QPushButton" name="remote_btn">
+          <property name="text">
+           <string>Connect</string>
+          </property>
+          <property name="styleSheet">
+           <string>background-color: #d4edda; color: #155724;</string>
+          </property>
          </widget>
         </item>
        </layout>

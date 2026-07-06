@@ -109,6 +109,8 @@ class ModbusMainWindow(QMainWindow):
         self.ui.remote_port_select.currentIndexChanged.connect(self._update_comboboxes)
         self.ui.local_btn.clicked.connect(self.on_connect_local_clicked)
         self.ui.remote_btn.clicked.connect(self.on_connect_remote_clicked)
+        self.ui.scan_local_btn.clicked.connect(self._scan_local_devices)
+        self.ui.scan_remote_btn.clicked.connect(self._scan_remote_devices)
         self.ui.local_id_select.currentTextChanged.connect(self._auto_select_local_type)
         self.ui.remote_id_select.currentTextChanged.connect(self._auto_select_remote_type)
         self.ui.remote_port_select.currentTextChanged.connect(self._auto_select_remote_type)
@@ -230,13 +232,17 @@ class ModbusMainWindow(QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def scan_for_available_devices(self) -> None:
-        """Scan for available local COM ports and remote boards via mDNS."""
+        """Scan for both local and remote devices."""
+        self._scan_local_devices()
+        self._scan_remote_devices()
+
+    def _scan_local_devices(self) -> None:
+        """Scan local COM ports for Modbus devices at the selected baud rate."""
         baudrate = int(self.ui.baudrate_select.currentText())
-        logger.info("=== Device scan started (baudrate=%d, id range=%d–%d) ===",
+        logger.info("=== Local scan started (baudrate=%d, id range=%d–%d) ===",
                     baudrate, self._scan_id_range.start, self._scan_id_range.stop - 1)
         local_devices = scan_local_modbus_devices(device_ids=self._scan_id_range, baudrate=baudrate)
-        self.ui.port_select.clear()
-
+        self.available_devices["local"] = {}
         for item in local_devices:
             port = item["port"]
             dev_id = str(item["device_id"])
@@ -247,6 +253,13 @@ class ModbusMainWindow(QMainWindow):
         local_ports = list(self.available_devices["local"].keys())
         self.ui.port_select.clear()
         self.ui.port_select.addItems(local_ports)
+        self._update_comboboxes()
+        logger.info("=== Local scan complete — ports: %s ===", local_ports)
+
+    def _scan_remote_devices(self) -> None:
+        """Scan for remote boards via mDNS and probe discovered IPs."""
+        logger.info("=== Remote scan started (id range=%d–%d) ===",
+                    self._scan_id_range.start, self._scan_id_range.stop - 1)
         found_devices = {}
         ips = scan_remote_boards()
         for ip in ips:
@@ -259,12 +272,9 @@ class ModbusMainWindow(QMainWindow):
                     found_devices[ip][port][dev_id] = item["type"].name
         self.ui.host_select.clear()
         self.ui.host_select.addItems(ips)
-
         self.available_devices["remote"] = found_devices
         self._update_comboboxes()
-        logger.info("=== Device scan complete — local ports: %s, remote hosts: %s ===",
-                    list(self.available_devices["local"].keys()),
-                    list(self.available_devices["remote"].keys()))
+        logger.info("=== Remote scan complete — hosts: %s ===", list(found_devices.keys()))
 
     def _update_comboboxes(self):
         """Refresh device-ID dropdowns to match the currently selected port / host."""

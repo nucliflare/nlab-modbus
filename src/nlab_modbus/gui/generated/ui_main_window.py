@@ -42,15 +42,27 @@ class Ui_MainWindow(object):
 
         self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
 
+        self.port_select = QComboBox(self.groupBox)
+        self.port_select.setObjectName(u"port_select")
+        self.port_select.setEditable(True)
+
+        self.gridLayout.addWidget(self.port_select, 0, 1, 1, 1)
+
         self.label_5 = QLabel(self.groupBox)
         self.label_5.setObjectName(u"label_5")
 
         self.gridLayout.addWidget(self.label_5, 0, 2, 1, 1)
 
-        self.label_type_local = QLabel(self.groupBox)
-        self.label_type_local.setObjectName(u"label_type_local")
+        self.local_id_select = QComboBox(self.groupBox)
+        self.local_id_select.setObjectName(u"local_id_select")
+        self.local_id_select.setEditable(True)
 
-        self.gridLayout.addWidget(self.label_type_local, 0, 4, 1, 1)
+        self.gridLayout.addWidget(self.local_id_select, 0, 3, 1, 1)
+
+        self.label_2 = QLabel(self.groupBox)
+        self.label_2.setObjectName(u"label_2")
+
+        self.gridLayout.addWidget(self.label_2, 1, 0, 1, 1)
 
         self.baudrate_select = QComboBox(self.groupBox)
         self.baudrate_select.addItem("")
@@ -62,27 +74,10 @@ class Ui_MainWindow(object):
 
         self.gridLayout.addWidget(self.baudrate_select, 1, 1, 1, 1)
 
-        self.label_2 = QLabel(self.groupBox)
-        self.label_2.setObjectName(u"label_2")
+        self.label_type_local = QLabel(self.groupBox)
+        self.label_type_local.setObjectName(u"label_type_local")
 
-        self.gridLayout.addWidget(self.label_2, 1, 0, 1, 1)
-
-        self.port_select = QComboBox(self.groupBox)
-        self.port_select.setObjectName(u"port_select")
-        self.port_select.setEditable(True)
-
-        self.gridLayout.addWidget(self.port_select, 0, 1, 1, 1)
-
-        self.local_btn = QPushButton(self.groupBox)
-        self.local_btn.setObjectName(u"local_btn")
-
-        self.gridLayout.addWidget(self.local_btn, 1, 6, 1, 1)
-
-        self.local_id_select = QComboBox(self.groupBox)
-        self.local_id_select.setObjectName(u"local_id_select")
-        self.local_id_select.setEditable(True)
-
-        self.gridLayout.addWidget(self.local_id_select, 0, 3, 1, 1)
+        self.gridLayout.addWidget(self.label_type_local, 1, 2, 1, 1)
 
         self.local_type_select = QComboBox(self.groupBox)
         self.local_type_select.addItem("")
@@ -90,7 +85,17 @@ class Ui_MainWindow(object):
         self.local_type_select.addItem("")
         self.local_type_select.setObjectName(u"local_type_select")
 
-        self.gridLayout.addWidget(self.local_type_select, 0, 5, 1, 1)
+        self.gridLayout.addWidget(self.local_type_select, 1, 3, 1, 1)
+
+        self.scan_local_btn = QPushButton(self.groupBox)
+        self.scan_local_btn.setObjectName(u"scan_local_btn")
+
+        self.gridLayout.addWidget(self.scan_local_btn, 2, 2, 1, 1)
+
+        self.local_btn = QPushButton(self.groupBox)
+        self.local_btn.setObjectName(u"local_btn")
+
+        self.gridLayout.addWidget(self.local_btn, 2, 3, 1, 1)
 
 
         self.horizontalLayout.addWidget(self.groupBox)
@@ -101,15 +106,21 @@ class Ui_MainWindow(object):
         self.groupBox_2.setSizePolicy(sizePolicy)
         self.gridLayout_2 = QGridLayout(self.groupBox_2)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
-        self.label_8 = QLabel(self.groupBox_2)
-        self.label_8.setObjectName(u"label_8")
-
-        self.gridLayout_2.addWidget(self.label_8, 0, 2, 1, 1)
-
         self.label_6 = QLabel(self.groupBox_2)
         self.label_6.setObjectName(u"label_6")
 
         self.gridLayout_2.addWidget(self.label_6, 0, 0, 1, 1)
+
+        self.host_select = QComboBox(self.groupBox_2)
+        self.host_select.setObjectName(u"host_select")
+        self.host_select.setEditable(True)
+
+        self.gridLayout_2.addWidget(self.host_select, 0, 1, 1, 1)
+
+        self.label_8 = QLabel(self.groupBox_2)
+        self.label_8.setObjectName(u"label_8")
+
+        self.gridLayout_2.addWidget(self.label_8, 0, 2, 1, 1)
 
         self.remote_id_select = QComboBox(self.groupBox_2)
         self.remote_id_select.setObjectName(u"remote_id_select")
@@ -117,34 +128,10 @@ class Ui_MainWindow(object):
 
         self.gridLayout_2.addWidget(self.remote_id_select, 0, 3, 1, 1)
 
-        self.label_type_remote = QLabel(self.groupBox_2)
-        self.label_type_remote.setObjectName(u"label_type_remote")
-
-        self.gridLayout_2.addWidget(self.label_type_remote, 0, 4, 1, 1)
-
-        self.remote_type_select = QComboBox(self.groupBox_2)
-        self.remote_type_select.addItem("")
-        self.remote_type_select.addItem("")
-        self.remote_type_select.addItem("")
-        self.remote_type_select.setObjectName(u"remote_type_select")
-
-        self.gridLayout_2.addWidget(self.remote_type_select, 0, 5, 1, 1)
-
         self.label_7 = QLabel(self.groupBox_2)
         self.label_7.setObjectName(u"label_7")
 
         self.gridLayout_2.addWidget(self.label_7, 1, 0, 1, 1)
-
-        self.remote_btn = QPushButton(self.groupBox_2)
-        self.remote_btn.setObjectName(u"remote_btn")
-
-        self.gridLayout_2.addWidget(self.remote_btn, 1, 5, 1, 1)
-
-        self.host_select = QComboBox(self.groupBox_2)
-        self.host_select.setObjectName(u"host_select")
-        self.host_select.setEditable(True)
-
-        self.gridLayout_2.addWidget(self.host_select, 0, 1, 1, 1)
 
         self.remote_port_select = QComboBox(self.groupBox_2)
         self.remote_port_select.addItem("")
@@ -153,6 +140,29 @@ class Ui_MainWindow(object):
         self.remote_port_select.setEditable(True)
 
         self.gridLayout_2.addWidget(self.remote_port_select, 1, 1, 1, 1)
+
+        self.label_type_remote = QLabel(self.groupBox_2)
+        self.label_type_remote.setObjectName(u"label_type_remote")
+
+        self.gridLayout_2.addWidget(self.label_type_remote, 1, 2, 1, 1)
+
+        self.remote_type_select = QComboBox(self.groupBox_2)
+        self.remote_type_select.addItem("")
+        self.remote_type_select.addItem("")
+        self.remote_type_select.addItem("")
+        self.remote_type_select.setObjectName(u"remote_type_select")
+
+        self.gridLayout_2.addWidget(self.remote_type_select, 1, 3, 1, 1)
+
+        self.scan_remote_btn = QPushButton(self.groupBox_2)
+        self.scan_remote_btn.setObjectName(u"scan_remote_btn")
+
+        self.gridLayout_2.addWidget(self.scan_remote_btn, 2, 2, 1, 1)
+
+        self.remote_btn = QPushButton(self.groupBox_2)
+        self.remote_btn.setObjectName(u"remote_btn")
+
+        self.gridLayout_2.addWidget(self.remote_btn, 2, 3, 1, 1)
 
 
         self.horizontalLayout.addWidget(self.groupBox_2)
@@ -195,34 +205,36 @@ class Ui_MainWindow(object):
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Local connection", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Port", None))
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"Device ID", None))
-        self.label_type_local.setText(QCoreApplication.translate("MainWindow", u"Type", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Bandwith", None))
         self.baudrate_select.setItemText(0, QCoreApplication.translate("MainWindow", u"115200", None))
         self.baudrate_select.setItemText(1, QCoreApplication.translate("MainWindow", u"57600", None))
         self.baudrate_select.setItemText(2, QCoreApplication.translate("MainWindow", u"38400", None))
         self.baudrate_select.setItemText(3, QCoreApplication.translate("MainWindow", u"19200", None))
         self.baudrate_select.setItemText(4, QCoreApplication.translate("MainWindow", u"9600", None))
 
-        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Bandwith", None))
-        self.local_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
-        self.local_btn.setStyleSheet(QCoreApplication.translate("MainWindow", u"background-color: #d4edda; color: #155724;", None))
+        self.label_type_local.setText(QCoreApplication.translate("MainWindow", u"Type", None))
         self.local_type_select.setItemText(0, QCoreApplication.translate("MainWindow", u"SIPM", None))
         self.local_type_select.setItemText(1, QCoreApplication.translate("MainWindow", u"GEIGER", None))
         self.local_type_select.setItemText(2, QCoreApplication.translate("MainWindow", u"PSU", None))
 
+        self.scan_local_btn.setText(QCoreApplication.translate("MainWindow", u"Scan...", None))
+        self.local_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
+        self.local_btn.setStyleSheet(QCoreApplication.translate("MainWindow", u"background-color: #d4edda; color: #155724;", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", u"Remote connection", None))
-        self.label_8.setText(QCoreApplication.translate("MainWindow", u"Device ID", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Host", None))
+        self.label_8.setText(QCoreApplication.translate("MainWindow", u"Device ID", None))
+        self.label_7.setText(QCoreApplication.translate("MainWindow", u"Port", None))
+        self.remote_port_select.setItemText(0, QCoreApplication.translate("MainWindow", u"5001", None))
+        self.remote_port_select.setItemText(1, QCoreApplication.translate("MainWindow", u"5002", None))
+
         self.label_type_remote.setText(QCoreApplication.translate("MainWindow", u"Type", None))
         self.remote_type_select.setItemText(0, QCoreApplication.translate("MainWindow", u"SIPM", None))
         self.remote_type_select.setItemText(1, QCoreApplication.translate("MainWindow", u"GEIGER", None))
         self.remote_type_select.setItemText(2, QCoreApplication.translate("MainWindow", u"PSU", None))
 
-        self.label_7.setText(QCoreApplication.translate("MainWindow", u"Port", None))
+        self.scan_remote_btn.setText(QCoreApplication.translate("MainWindow", u"Scan...", None))
         self.remote_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.remote_btn.setStyleSheet(QCoreApplication.translate("MainWindow", u"background-color: #d4edda; color: #155724;", None))
-        self.remote_port_select.setItemText(0, QCoreApplication.translate("MainWindow", u"5001", None))
-        self.remote_port_select.setItemText(1, QCoreApplication.translate("MainWindow", u"5002", None))
-
         self.devices_group.setTitle(QCoreApplication.translate("MainWindow", u"Devices", None))
     # retranslateUi
 
