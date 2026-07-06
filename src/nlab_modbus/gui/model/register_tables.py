@@ -29,6 +29,7 @@ class RegisterRow:
     password_protected: bool = False
     min_val: int = -0x8000
     max_val: int = 0x7FFF
+    description: str = ""
 
 
 class HoldingRegisterTableModel(QAbstractTableModel):
@@ -91,6 +92,9 @@ class HoldingRegisterTableModel(QAbstractTableModel):
 
         row = self._rows[index.row()]
         col = index.column()
+
+        if role == Qt.ItemDataRole.ToolTipRole:
+            return row.description or None
 
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
             if col == self.COL_ID:
@@ -234,6 +238,9 @@ class InputRegisterTableModel(QAbstractTableModel):
             return None
 
         row = self._rows[row_index]
+
+        if role == Qt.ItemDataRole.ToolTipRole:
+            return row.description or None
 
         if role == Qt.ItemDataRole.CheckStateRole:
             if col == self.COL_PLOT:

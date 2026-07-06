@@ -44,6 +44,7 @@ class RegisterSpec:
     scale: float = 1.0
     unit: str | None = None
     password_protected: bool = False
+    description: str = ""
 
 
 RegisterKey = tuple[RegisterType, int]

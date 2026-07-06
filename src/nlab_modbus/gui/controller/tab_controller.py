@@ -53,7 +53,8 @@ class DeviceTab(QWidget):
         input_registers = []
         for i, (register, value) in enumerate(self.device.get_all_input_registers(raw=True).items()):
             self.input_register_buffer[register] = NumpyRingBuffer(1000)
-            input_registers.append(RegisterRow(i, register, value))
+            spec = self.device.REGISTER_MAP[register]
+            input_registers.append(RegisterRow(i, register, value, description=spec.description))
         holding_registers = []
         for i, (name, value) in enumerate(self.device.get_all_holding_registers(raw=True).items()):
             spec = self.device.REGISTER_MAP[name]
@@ -63,6 +64,7 @@ class DeviceTab(QWidget):
                     password_protected=spec.password_protected,
                     min_val=spec.min,
                     max_val=spec.max,
+                    description=spec.description,
                 )
             )
         self.holding_model = HoldingRegisterTableModel(holding_registers)
