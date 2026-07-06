@@ -49,7 +49,7 @@ class Ui_DeviceTab(object):
         self.refresh_spinner = QSpinBox(self.groupBox_3)
         self.refresh_spinner.setObjectName(u"refresh_spinner")
         self.refresh_spinner.setMinimum(100)
-        self.refresh_spinner.setMaximum(2500)
+        self.refresh_spinner.setMaximum(10000)
         self.refresh_spinner.setValue(250)
 
         self.gridLayout.addWidget(self.refresh_spinner, 1, 2, 1, 1)

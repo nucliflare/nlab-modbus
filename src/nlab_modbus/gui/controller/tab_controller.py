@@ -183,6 +183,7 @@ class DeviceTab(QWidget):
         self.polling_thread.holding_registers_updated.connect(self.update_holding_registers)
         self.polling_thread.polling_failed.connect(self.on_device_polling_failed)
         self.polling_thread.write_failed.connect(self.on_device_write_failed)
+        self.ui.refresh_spinner.valueChanged.connect(self.polling_thread.update_refresh_rate)
         self.polling_thread.start()
 
     def update_input_registers(

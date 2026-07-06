@@ -37,11 +37,6 @@ class Ui_MainWindow(object):
         self.groupBox.setSizePolicy(sizePolicy)
         self.gridLayout = QGridLayout(self.groupBox)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.label_3 = QLabel(self.groupBox)
-        self.label_3.setObjectName(u"label_3")
-
-        self.gridLayout.addWidget(self.label_3, 0, 2, 1, 1)
-
         self.label = QLabel(self.groupBox)
         self.label.setObjectName(u"label")
 
@@ -85,13 +80,6 @@ class Ui_MainWindow(object):
         self.port_select.setEditable(True)
 
         self.gridLayout.addWidget(self.port_select, 0, 1, 1, 1)
-
-        self.stopbit_select = QComboBox(self.groupBox)
-        self.stopbit_select.addItem("")
-        self.stopbit_select.addItem("")
-        self.stopbit_select.setObjectName(u"stopbit_select")
-
-        self.gridLayout.addWidget(self.stopbit_select, 0, 3, 1, 1)
 
         self.local_btn = QPushButton(self.groupBox)
         self.local_btn.setObjectName(u"local_btn")
@@ -190,7 +178,6 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"Form", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Local connection", None))
-        self.label_3.setText(QCoreApplication.translate("MainWindow", u"Stop bit", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Port", None))
         self.parity_select.setItemText(0, QCoreApplication.translate("MainWindow", u"None", None))
         self.parity_select.setItemText(1, QCoreApplication.translate("MainWindow", u"Odd", None))
@@ -205,9 +192,6 @@ class Ui_MainWindow(object):
 
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Bandwith", None))
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"Parity", None))
-        self.stopbit_select.setItemText(0, QCoreApplication.translate("MainWindow", u"1", None))
-        self.stopbit_select.setItemText(1, QCoreApplication.translate("MainWindow", u"2", None))
-
         self.local_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", u"Remote connection", None))
         self.label_8.setText(QCoreApplication.translate("MainWindow", u"Device ID", None))
