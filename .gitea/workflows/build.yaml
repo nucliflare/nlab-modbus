@@ -17,7 +17,7 @@ jobs:
           - name: ubuntu
             runs-on: ubuntu-builder
             venv-python: .venv/bin/python
-            artifact: build/nlab-modbus-gui.exe
+            artifact: build/nlab-modbus-gui
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v4
