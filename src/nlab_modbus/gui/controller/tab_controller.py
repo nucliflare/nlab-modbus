@@ -85,27 +85,33 @@ class DeviceTab(QWidget):
             self.ui.input_table_view,
         ):
             table.setAlternatingRowColors(True)
+            table.verticalHeader().setVisible(False)
+
         self._configure_input_table()
         self._configure_holding_table()
 
     def _configure_holding_table(self) -> None:
-        """ID column fixed to content width; Register and Value columns stretch."""
+        """ID fixed to content; Register and Value user-resizable; Value stretches to fill."""
         table = self.ui.holding_table_view
         header = table.horizontalHeader()
 
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # ID
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Register
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # Value
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)       # Register
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)       # Value
+        header.setStretchLastSection(True)
 
     def _configure_input_table(self) -> None:
-        """Same as holding table but with a fixed-width Plot checkbox column."""
+        """ID and Plot fixed; Register and Value user-resizable; Register stretches to fill."""
         table = self.ui.input_table_view
         header = table.horizontalHeader()
 
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # ID
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Register
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # Value
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Plottable
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)       # Register
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)       # Value
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Plot
+        header.setStretchLastSection(False)
+        header.resizeSection(1, 180)  # Register initial width
+        header.resizeSection(2, 80)   # Value initial width
 
     def _connect_signals(self) -> None:
         """Wire model signals, button clicks, and plot toggle to their slots."""
