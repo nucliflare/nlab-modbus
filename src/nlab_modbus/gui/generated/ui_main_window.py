@@ -82,6 +82,7 @@ class Ui_MainWindow(object):
 
         self.port_select = QComboBox(self.groupBox)
         self.port_select.setObjectName(u"port_select")
+        self.port_select.setEditable(True)
 
         self.gridLayout.addWidget(self.port_select, 0, 1, 1, 1)
 
@@ -138,6 +139,7 @@ class Ui_MainWindow(object):
 
         self.host_select = QComboBox(self.groupBox_2)
         self.host_select.setObjectName(u"host_select")
+        self.host_select.setEditable(True)
 
         self.gridLayout_2.addWidget(self.host_select, 0, 1, 1, 1)
 
@@ -145,6 +147,7 @@ class Ui_MainWindow(object):
         self.remote_port_select.addItem("")
         self.remote_port_select.addItem("")
         self.remote_port_select.setObjectName(u"remote_port_select")
+        self.remote_port_select.setEditable(True)
 
         self.gridLayout_2.addWidget(self.remote_port_select, 1, 1, 1, 1)
 

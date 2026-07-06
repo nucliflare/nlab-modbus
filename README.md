@@ -16,43 +16,74 @@ A PySide6 desktop application and Python library for monitoring and controlling 
 
 ## Installation
 
-Requires **Python ≥ 3.11**.
+Requires **Python ≥ 3.11** and [uv](https://docs.astral.sh/uv/).
 
+### Install uv
+
+**Ubuntu / macOS**
 ```bash
-pip install -e .
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-For the Jupyter development notebooks, install the optional extras:
+**Windows**
+```powershell
+winget install --id=astral-sh.uv -e
+```
 
+### Clone and install
+
+**Library only** (no GUI — use via Python API or CLI scripts):
 ```bash
-pip install -e ".[dev]"
+git clone https://github.com/kbrylew/nlab-modbus-devices.git
+cd nlab-modbus-devices
+uv sync
+```
+
+> Without the `gui` extra, PySide6 and pyqtgraph are not installed. The library API, device drivers, and discovery utilities are fully functional, but running `nlab-modbus-gui` will fail with an import error.
+
+**With the desktop GUI:**
+```bash
+uv sync --extra gui
+```
+
+**With Jupyter development notebooks:**
+```bash
+uv sync --extra gui --extra dev
 ```
 
 ### Dependencies
 
-| Package | Purpose |
-|---|---|
-| `pymodbus` | Modbus RTU client (serial and TCP) |
-| `pyserial` | Serial port enumeration |
-| `zeroconf` | mDNS auto-discovery of remote boards |
-| `PySide6` | Qt6 GUI framework |
-| `pyqtgraph` | Real-time live plots |
+| Package | Extra | Purpose |
+|---|---|---|
+| `pymodbus` | *(base)* | Modbus RTU client (serial and TCP) |
+| `pyserial` | *(base)* | Serial port enumeration |
+| `zeroconf` | *(base)* | mDNS auto-discovery of remote boards |
+| `PySide6` | `gui` | Qt6 GUI framework |
+| `pyqtgraph` | `gui` | Real-time live plots |
+| `matplotlib`, `jupyter` | `dev` | Calibration notebooks |
 
 ---
 
 ## Running the GUI
 
 ```bash
-python -m nlab_modbus.gui.main_app
-```
-
-Or, after installing the package, via the entry point defined in `pyproject.toml`:
-
-```bash
-nlab-modbus-gui
+uv run nlab-modbus-gui
 ```
 
 The application window opens with an auto-scan of all available serial ports and mDNS-announced remote boards.
+
+### Startup options
+
+| Option | Default | Description |
+|---|---|---|
+| `--baudrate BAUD` | `115200` | Baud rate used for the initial serial scan |
+| `--start-id ID` | `1` | First Modbus device ID to probe |
+| `--end-id ID` | `16` | Last Modbus device ID to probe |
+
+Example — scan at 9600 baud for IDs 1–4:
+```bash
+uv run nlab-modbus-gui --baudrate 9600 --start-id 1 --end-id 4
+```
 
 ---
 
@@ -138,7 +169,7 @@ nlab_modbus/
 
 ### Register codec
 
-`RegisterSpec` stores each register's address, Modbus type (`uint16`, `int16`, `bool`), scale factor, and engineering unit.  `BaseModbusDevice.encode()` / `decode()` apply two's-complement sign extension for `int16` and the scale factor in both directions. Contiguous input register ranges are read in a single FC04 block transaction (`read_snapshot()`) to minimize bus traffic.
+`RegisterSpec` stores each register's address, Modbus type (`int16` or `bool`), scale factor, and engineering unit. `BaseModbusDevice.encode()` / `decode()` apply two's-complement sign extension and the scale factor in both directions. Pass `raw=True` to skip scaling and work directly with raw register counts. Contiguous input register ranges are read in a single FC04 block transaction (`read_snapshot()`) to minimise bus traffic.
 
 ---
 
