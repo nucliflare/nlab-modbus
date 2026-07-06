@@ -15,7 +15,7 @@ jobs:
             venv-python: .venv/Scripts/python.exe
             artifact: build/nlab-modbus-gui.exe
           - name: ubuntu
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-local
             venv-python: .venv/bin/python
             artifact: build/nlab-modbus-gui
     runs-on: ${{ matrix.runs-on }}
