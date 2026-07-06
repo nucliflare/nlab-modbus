@@ -21,6 +21,8 @@ PRODUCT_NAME = "NLab Modbus Monitor"
 PRODUCT_VERSION = __version__
 COMPANY = "Nuclear-Lab / EWT"
 
+OUTPUT_NAME = "nlab-modbus-gui.exe" if sys.platform == "win32" else "nlab-modbus-gui"
+
 
 def build() -> int:
     cmd = [
@@ -30,14 +32,7 @@ def build() -> int:
         "--standalone",
         "--onefile",
         f"--output-dir={OUTPUT}",
-        f"--output-filename=nlab-modbus-gui.exe",
-        # Windows metadata
-        f"--windows-icon-from-ico={ICON}",
-        "--windows-console-mode=force",
-        f"--product-name={PRODUCT_NAME}",
-        f"--product-version={PRODUCT_VERSION}",
-        f"--company-name={COMPANY}",
-        f"--copyright=Copyright (c) {COMPANY}",
+        f"--output-filename={OUTPUT_NAME}",
         # PySide6 plugin handles Qt binaries, translations, etc.
         "--enable-plugin=pyside6",
         # Bundle data files
@@ -53,8 +48,19 @@ def build() -> int:
         "--include-module=PySide6.QtOpenGLWidgets",
         # Strip docstrings / asserts for smaller binary
         "--python-flag=no_docstrings",
-        str(ENTRY),
     ]
+
+    if sys.platform == "win32":
+        cmd += [
+            f"--windows-icon-from-ico={ICON}",
+            "--windows-console-mode=force",
+            f"--product-name={PRODUCT_NAME}",
+            f"--product-version={PRODUCT_VERSION}",
+            f"--company-name={COMPANY}",
+            f"--copyright=Copyright (c) {COMPANY}",
+        ]
+
+    cmd.append(str(ENTRY))
 
     print("Running Nuitka build …")
     print(" ".join(cmd))
