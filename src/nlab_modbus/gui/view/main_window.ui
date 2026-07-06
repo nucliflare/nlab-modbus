@@ -35,25 +35,6 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="3">
-         <widget class="QComboBox" name="parity_select">
-          <item>
-           <property name="text">
-            <string>None</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Odd</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Even</string>
-           </property>
-          </item>
-         </widget>
-        </item>
         <item row="0" column="4">
          <widget class="QLabel" name="label_5">
           <property name="text">
@@ -97,13 +78,6 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="2">
-         <widget class="QLabel" name="label_4">
-          <property name="text">
-           <string>Parity</string>
-          </property>
-         </widget>
-        </item>
         <item row="0" column="1">
          <widget class="QComboBox" name="port_select">
           <property name="editable">
@@ -115,6 +89,9 @@
          <widget class="QPushButton" name="local_btn">
           <property name="text">
            <string>Connect</string>
+          </property>
+          <property name="styleSheet">
+           <string>background-color: #d4edda; color: #155724;</string>
           </property>
          </widget>
         </item>
@@ -164,6 +141,9 @@
          <widget class="QPushButton" name="remote_btn">
           <property name="text">
            <string>Connect</string>
+          </property>
+          <property name="styleSheet">
+           <string>background-color: #d4edda; color: #155724;</string>
           </property>
          </widget>
         </item>

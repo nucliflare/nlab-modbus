@@ -124,9 +124,8 @@ class ModbusMainWindow(QMainWindow):
         """
         port = self.ui.port_select.currentText()
         baudrate = int(self.ui.baudrate_select.currentText())
-        parity = self.ui.parity_select.currentText()[0]
         device_id, device_type = self.ui.local_select.currentText().split()
-        device = self.manager.connect_local(port, int(device_id), DeviceType[device_type], baudrate, parity, stopbits=1)
+        device = self.manager.connect_local(port, int(device_id), DeviceType[device_type], baudrate, parity="N", stopbits=1)
         self.add_device_tab(device)
 
     def add_device_tab(self, device):

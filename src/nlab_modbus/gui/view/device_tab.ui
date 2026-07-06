@@ -63,10 +63,13 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="2">
+        <item row="2" column="0">
          <widget class="QPushButton" name="tab_disconnect_btn">
           <property name="text">
            <string>Disconnect</string>
+          </property>
+          <property name="styleSheet">
+           <string>background-color: #f8d7da; color: #721c24;</string>
           </property>
          </widget>
         </item>

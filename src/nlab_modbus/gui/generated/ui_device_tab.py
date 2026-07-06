@@ -67,7 +67,7 @@ class Ui_DeviceTab(object):
         self.tab_disconnect_btn = QPushButton(self.groupBox_3)
         self.tab_disconnect_btn.setObjectName(u"tab_disconnect_btn")
 
-        self.gridLayout.addWidget(self.tab_disconnect_btn, 3, 2, 1, 1)
+        self.gridLayout.addWidget(self.tab_disconnect_btn, 2, 0, 1, 1)
 
 
         self.verticalLayout.addWidget(self.groupBox_3)
@@ -128,6 +128,7 @@ class Ui_DeviceTab(object):
         self.label.setText(QCoreApplication.translate("DeviceTab", u"Type", None))
         self.label_3.setText(QCoreApplication.translate("DeviceTab", u"Refresh rate (ms)", None))
         self.tab_disconnect_btn.setText(QCoreApplication.translate("DeviceTab", u"Disconnect", None))
+        self.tab_disconnect_btn.setStyleSheet(QCoreApplication.translate("DeviceTab", u"background-color: #f8d7da; color: #721c24;", None))
         self.groupBox.setTitle(QCoreApplication.translate("DeviceTab", u"Holding registers (R/W)", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("DeviceTab", u"Input registers (R)", None))
     # retranslateUi

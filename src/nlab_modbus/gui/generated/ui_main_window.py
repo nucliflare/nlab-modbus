@@ -42,14 +42,6 @@ class Ui_MainWindow(object):
 
         self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
 
-        self.parity_select = QComboBox(self.groupBox)
-        self.parity_select.addItem("")
-        self.parity_select.addItem("")
-        self.parity_select.addItem("")
-        self.parity_select.setObjectName(u"parity_select")
-
-        self.gridLayout.addWidget(self.parity_select, 1, 3, 1, 1)
-
         self.label_5 = QLabel(self.groupBox)
         self.label_5.setObjectName(u"label_5")
 
@@ -69,11 +61,6 @@ class Ui_MainWindow(object):
         self.label_2.setObjectName(u"label_2")
 
         self.gridLayout.addWidget(self.label_2, 1, 0, 1, 1)
-
-        self.label_4 = QLabel(self.groupBox)
-        self.label_4.setObjectName(u"label_4")
-
-        self.gridLayout.addWidget(self.label_4, 1, 2, 1, 1)
 
         self.port_select = QComboBox(self.groupBox)
         self.port_select.setObjectName(u"port_select")
@@ -179,10 +166,6 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"Form", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Local connection", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Port", None))
-        self.parity_select.setItemText(0, QCoreApplication.translate("MainWindow", u"None", None))
-        self.parity_select.setItemText(1, QCoreApplication.translate("MainWindow", u"Odd", None))
-        self.parity_select.setItemText(2, QCoreApplication.translate("MainWindow", u"Even", None))
-
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"Device ID", None))
         self.baudrate_select.setItemText(0, QCoreApplication.translate("MainWindow", u"115200", None))
         self.baudrate_select.setItemText(1, QCoreApplication.translate("MainWindow", u"57600", None))
@@ -191,13 +174,14 @@ class Ui_MainWindow(object):
         self.baudrate_select.setItemText(4, QCoreApplication.translate("MainWindow", u"9600", None))
 
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Bandwith", None))
-        self.label_4.setText(QCoreApplication.translate("MainWindow", u"Parity", None))
         self.local_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
+        self.local_btn.setStyleSheet(QCoreApplication.translate("MainWindow", u"background-color: #d4edda; color: #155724;", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", u"Remote connection", None))
         self.label_8.setText(QCoreApplication.translate("MainWindow", u"Device ID", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Host", None))
         self.label_7.setText(QCoreApplication.translate("MainWindow", u"Port", None))
         self.remote_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
+        self.remote_btn.setStyleSheet(QCoreApplication.translate("MainWindow", u"background-color: #d4edda; color: #155724;", None))
         self.remote_port_select.setItemText(0, QCoreApplication.translate("MainWindow", u"5001", None))
         self.remote_port_select.setItemText(1, QCoreApplication.translate("MainWindow", u"5002", None))
 
