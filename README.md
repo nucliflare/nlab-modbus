@@ -34,7 +34,7 @@ winget install --id=astral-sh.uv -e
 
 **Library only** (no GUI — use via Python API or CLI scripts):
 ```bash
-git clone https://github.com/kbrylew/nlab-modbus-devices.git
+git clone https://github.com/nucliflare/nlab-modbus.git
 cd nlab-modbus-devices
 uv sync
 ```
@@ -93,19 +93,31 @@ uv run nlab-modbus-gui --baudrate 9600 --start-id 1 --end-id 4
 
 **Local (serial)**
 
-1. Select the COM port from the *Port* dropdown (populated by auto-scan on startup).
-2. Choose baud rate, stop bits, and parity if they differ from the defaults (115200 / 1 / None).
-3. Pick the device ID and type from the *Device* dropdown.
-4. Click **Connect Local**.
+1. Select a COM port from the *Port* dropdown (populated by scan on startup, or type one manually).
+2. Adjust the *Bandwidth* combo if the device runs at a non-default baud rate (e.g. 9600).
+3. Select (or type) a device ID. If the ID was found during the scan, the *Type* field is auto-filled.
+4. Confirm or change the device type (SIPM / GEIGER / PSU), then click **Connect**.
+
+Serial framing is fixed at **8N1** (8 data bits, no parity, 1 stop bit) — the hardware does not support other configurations.
+
+Click **Scan…** next to the Connect button to re-probe all local serial ports using the current baud rate, without restarting the application. Use this after changing the baud rate combo or plugging in a new device.
 
 **Remote (TCP / ser2net)**
 
-1. Remote boards advertising themselves via mDNS under the service name `nucliflare` are discovered automatically at startup.
-2. Select the host IP and port (5001 or 5002) from the dropdowns.
-3. Pick the device ID and type, then click **Connect Remote**.
-4. Use **Connection → Scan for available devices** in the menu to repeat discovery at any time.
+1. Remote boards advertising via mDNS (`nucliflare` service name) are discovered automatically at startup.
+2. Select (or type) a host IP, then pick or type the TCP port (5001 or 5002).
+3. Select (or type) a device ID. If the combination was found during the scan, the *Type* field is auto-filled.
+4. Confirm or change the device type, then click **Connect**.
+
+Click **Scan…** next to the remote Connect button to re-run mDNS discovery and re-probe all found hosts without restarting.
+
+Use **Connection → Scan for available devices** (or press **F5**) to run both a local and a remote scan at once.
 
 Multiple devices can be connected simultaneously. Each gets its own tab.
+
+**Hardware version check**
+
+After a successful connection the application reads the device's `hardware_version` register and compares it to the selected type. If they do not match a dialog asks whether to open the tab anyway — the register map may not match the physical hardware, so the default answer is *No*.
 
 ### Device tab
 
@@ -113,12 +125,12 @@ Each connected device opens a tab labelled with its connection string (e.g. `ser
 
 | Panel | Description |
 |---|---|
-| **Holding registers** | Read/write configuration table. Click a value cell to edit it; the new value is sent to the device on confirmation. |
-| **Input registers** | Live read-only telemetry table, updated at the configured refresh rate. |
-| **Plot** column | Check the *Plot* box next to any input register to add a live time-series trace to the chart. Each trace gets a random colour. Multiple registers can be plotted simultaneously. |
+| **Holding registers** | Read/write configuration table. Click a value cell to edit it; the entered value is validated against the register's min/max before being sent to the device. Hover over a register name for a description tooltip. Password-protected registers are greyed out until service mode is unlocked. |
+| **Input registers** | Live read-only telemetry table, updated at the configured refresh rate. Hover over a register name for a description tooltip. |
+| **Plot** column | Check the *Plot* box next to any input register to add a live time-series trace to the chart. Multiple registers can be plotted simultaneously. |
 | **Clear Plot** button | Resets all ring buffers and the time axis. |
 | **Disconnect** button | Stops the polling thread and removes the tab. |
-| **Refresh rate** spinner | Adjusts the polling interval in milliseconds. |
+| **Refresh rate** spinner | Adjusts the polling interval in milliseconds (100–10 000 ms). Changes take effect immediately without reconnecting. |
 
 ### Status bar
 
@@ -169,7 +181,7 @@ nlab_modbus/
 
 ### Register codec
 
-`RegisterSpec` stores each register's address, Modbus type (`int16` or `bool`), scale factor, and engineering unit. `BaseModbusDevice.encode()` / `decode()` apply two's-complement sign extension and the scale factor in both directions. Pass `raw=True` to skip scaling and work directly with raw register counts. Contiguous input register ranges are read in a single FC04 block transaction (`read_snapshot()`) to minimise bus traffic.
+`RegisterSpec` stores each register's address, Modbus function type (`HOLDING` / `INPUT`), wire dtype (`int16`), min/max bounds, scale factor, engineering unit, and a human-readable description. `BaseModbusDevice.encode()` / `decode()` apply two's-complement sign extension and the scale factor in both directions. Pass `raw=True` to skip scaling and work directly with raw register counts. Contiguous input register ranges are read in a single FC04 block transaction (`read_snapshot()`) to minimise bus traffic.
 
 ---
 

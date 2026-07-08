@@ -172,16 +172,22 @@ class ModbusMainWindow(QMainWindow):
 
     def add_device_tab(self, device):
         """Open a DeviceTab for device, or bring the existing tab to front."""
-        if self.ui.devices_group.isHidden():
-            self.ui.devices_group.show()
-
-        if device not in self._open_devices:
-            tab = DeviceTab(device, self)
-            self.ui.device_tabs.addTab(tab, device.connection_info())
-            self._open_devices[device] = tab
-        else:
+        if device in self._open_devices:
             self.ui.device_tabs.setCurrentWidget(self._open_devices[device])
             QMessageBox.information(self, "Device Already Connected", f"The device '{device.connection_info()}' is already connected.")
+            return
+
+        try:
+            tab = DeviceTab(device, self)
+        except Exception as exc:
+            self.manager.disconnect(device)
+            QMessageBox.critical(self, "Device Error", f"Failed to open device '{device.connection_info()}':\n{exc}")
+            return
+
+        self.ui.device_tabs.addTab(tab, device.connection_info())
+        self._open_devices[device] = tab
+        if self.ui.devices_group.isHidden():
+            self.ui.devices_group.show()
 
     def _setup_menu_bar(self) -> None:
         """Build the File / Connection / View / Help menus and wire their actions."""
