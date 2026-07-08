@@ -45,7 +45,7 @@
         <item row="0" column="2">
          <widget class="QLabel" name="label_5">
           <property name="text">
-           <string>Device ID</string>
+           <string>Modus adress</string>
           </property>
          </widget>
         </item>
@@ -127,11 +127,11 @@
         </item>
         <item row="2" column="3">
          <widget class="QPushButton" name="local_btn">
-          <property name="text">
-           <string>Connect</string>
-          </property>
           <property name="styleSheet">
            <string>background-color: #d4edda; color: #155724;</string>
+          </property>
+          <property name="text">
+           <string>Connect</string>
           </property>
          </widget>
         </item>
@@ -167,7 +167,7 @@
         <item row="0" column="2">
          <widget class="QLabel" name="label_8">
           <property name="text">
-           <string>Device ID</string>
+           <string>Modbus adress</string>
           </property>
          </widget>
         </item>
@@ -237,11 +237,11 @@
         </item>
         <item row="2" column="3">
          <widget class="QPushButton" name="remote_btn">
-          <property name="text">
-           <string>Connect</string>
-          </property>
           <property name="styleSheet">
            <string>background-color: #d4edda; color: #155724;</string>
+          </property>
+          <property name="text">
+           <string>Connect</string>
           </property>
          </widget>
         </item>

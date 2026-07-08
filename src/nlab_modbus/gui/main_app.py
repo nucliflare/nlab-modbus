@@ -6,8 +6,9 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtWidgets import QApplication, QSplashScreen
 
 from nlab_modbus import __version__
 from nlab_modbus.gui.controller.main_controller import ModbusMainWindow
@@ -16,15 +17,22 @@ from nlab_modbus.gui.model.log_handler import QtLogHandler
 _SCRIPT_DIR = Path(__file__).resolve().parent
 
 
-def _find_icon() -> Path:
+def _find_resource(filename: str) -> Path | None:
     candidates = [
-        _SCRIPT_DIR / "resources" / "ewt.ico",
-        _SCRIPT_DIR / "nlab_modbus" / "gui" / "resources" / "ewt.ico",
+        _SCRIPT_DIR / "resources" / filename,
+        _SCRIPT_DIR / "nlab_modbus" / "gui" / "resources" / filename,
     ]
     for p in candidates:
         if p.exists():
             return p
-    raise FileNotFoundError(f"Application icon not found in: {candidates}")
+    return None
+
+
+def _find_icon() -> Path:
+    p = _find_resource("ewt.ico")
+    if p is None:
+        raise FileNotFoundError("Application icon ewt.ico not found")
+    return p
 
 
 def main() -> int:
@@ -68,8 +76,24 @@ def main() -> int:
 
     logging.getLogger("nlab_modbus").info("Starting nlab-modbus-gui v%s", __version__)
 
+    splash = None
+    png_path = _find_resource("ewt.png")
+    if png_path is not None:
+        pixmap = QPixmap(str(png_path))
+        splash = QSplashScreen(pixmap, Qt.WindowType.WindowStaysOnTopHint)
+        splash.showMessage(
+            "Scanning for devices…",
+            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
+            Qt.GlobalColor.white,
+        )
+        splash.show()
+        app.processEvents()
+
     window = ModbusMainWindow(log_handler=log_handler, initial_baudrate=args.baudrate, scan_id_range=range(args.start_id, args.end_id + 1))
     window.show()
+
+    if splash is not None:
+        splash.finish(window)
 
     app.setWindowIcon(QIcon(str(_find_icon())))
     return app.exec()

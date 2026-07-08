@@ -6,6 +6,7 @@ from datetime import datetime
 
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QDialog,
     QHBoxLayout,
     QPlainTextEdit,
@@ -73,6 +74,7 @@ class LogStatusBar(QStatusBar):
     def _on_log_record(self, message: str, level: int) -> None:
         if level >= self._min_level:
             self.showMessage(message)
+            QApplication.processEvents()
 
     def mouseDoubleClickEvent(self, event) -> None:
         if self._log_dialog is not None and self._log_dialog.isVisible():

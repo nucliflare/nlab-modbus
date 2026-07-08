@@ -307,18 +307,18 @@ class DeviceTab(QWidget):
         """Stop the polling thread gracefully (waits up to 2 s for it to exit)."""
         if self.polling_thread:
             self.polling_thread.stop()
-            self.polling_thread.wait(2000)
+            self.polling_thread.wait(500)
 
     def close_tab(self):
         """Remove this tab from the QTabWidget and schedule the widget for deletion."""
         index = self.main_widget.ui.device_tabs.indexOf(self)
         if index == -1:
             return
+        self.close()
+        self.main_widget.manager.disconnect(self.device)
         self.main_widget.ui.device_tabs.removeTab(index)
         self.main_widget._open_devices.pop(self.device, None)
         self.main_widget.hide_tabs()
-        self.deleteLater()
-        self.close()
         self.deleteLater()
 
     def clear_buffers(self):

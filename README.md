@@ -24,6 +24,8 @@ Requires **Python ≥ 3.11** and [uv](https://docs.astral.sh/uv/).
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
+> Restart the terminal after `uv` installation.
+
 
 **Windows**
 ```powershell

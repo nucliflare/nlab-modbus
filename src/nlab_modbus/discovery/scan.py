@@ -23,7 +23,7 @@ def scan_local_modbus_devices(
     bytesize: int = 8,
     parity: str = "N",
     stopbits: int = 1,
-    timeout: float = 0.25,
+    timeout: float = 0.1,
     retries: int = 0,
 ) -> list[dict]:
     """Probe every serial port for responding Modbus devices.
@@ -37,8 +37,9 @@ def scan_local_modbus_devices(
         type (DeviceType), device_id (int), host (None), port (str),
         description (str), hardware_id (int).
 
-    The 250 ms timeout and zero retries are chosen for speed: a missing device
+    The 100 ms timeout and zero retries are chosen for speed: a missing device
     silently times out in one slot rather than blocking the scan for seconds.
+    RTU devices respond in <10 ms on a healthy bus so 100 ms is still 10× headroom.
     """
     found: list[dict] = []
     all_ports = list(list_ports.comports())
@@ -108,7 +109,7 @@ def scan_remote_modbus_devices(
     host: str,
     port: int,
     candidate_ids: range | None = None,
-    scan_timeout: float = 0.02,  # 50 ms
+    scan_timeout: float = 0.02,
 ) -> list[dict]:
     """
     Scan for Modbus devices on the given TCP host:port by reading the
@@ -131,6 +132,7 @@ def scan_remote_modbus_devices(
             port=port,
             framer=FramerType.RTU,
             timeout=scan_timeout,
+            retries=0,
         )
         try:
             client.connect()
@@ -158,7 +160,7 @@ def scan_remote_modbus_devices(
 
 
 def scan_remote_boards(
-    timeout: float = 1.0,
+    timeout: float = 0.4,
     name_filter: str | None = "nucliflare",
     service_type: str | None = None,
 ) -> list:

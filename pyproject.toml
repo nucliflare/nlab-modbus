@@ -39,7 +39,7 @@ build = [
 nlab-modbus-gui = "nlab_modbus.gui.main_app:main"
 
 [project.urls]
-Repository = "https://github.com/kbrylew/nlab-modbus-devices"
+Repository = "https://github.com/nucliflare/nlab-modbus"
 
 [tool.setuptools.dynamic]
 version = {attr = "nlab_modbus._version.__version__"}
