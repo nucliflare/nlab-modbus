@@ -84,7 +84,7 @@ class ModbusMainWindow(QMainWindow):
         Configure main window after loading the .ui file.
         """
 
-        self.setWindowTitle("Modbus Monitor")
+        self.setWindowTitle("Nuclearlab - Modbus")
         # self.resize(1100, 750)
         # self.setCentralWidget(self.ui)
         self.ui.devices_group.hide()
@@ -245,8 +245,7 @@ class ModbusMainWindow(QMainWindow):
     def _scan_local_devices(self) -> None:
         """Scan local COM ports for Modbus devices at the selected baud rate."""
         baudrate = int(self.ui.baudrate_select.currentText())
-        logger.info("=== Local scan started (baudrate=%d, id range=%d–%d) ===",
-                    baudrate, self._scan_id_range.start, self._scan_id_range.stop - 1)
+        logger.info("=== Local scan started (baudrate=%d, id range=%d–%d) ===", baudrate, self._scan_id_range.start, self._scan_id_range.stop - 1)
         local_devices = scan_local_modbus_devices(device_ids=self._scan_id_range, baudrate=baudrate)
         self.available_devices["local"] = {}
         for item in local_devices:
@@ -264,8 +263,7 @@ class ModbusMainWindow(QMainWindow):
 
     def _scan_remote_devices(self) -> None:
         """Scan for remote boards via mDNS and probe discovered IPs."""
-        logger.info("=== Remote scan started (id range=%d–%d) ===",
-                    self._scan_id_range.start, self._scan_id_range.stop - 1)
+        logger.info("=== Remote scan started (id range=%d–%d) ===", self._scan_id_range.start, self._scan_id_range.stop - 1)
         found_devices = {}
         ips = scan_remote_boards()
         for ip in ips:

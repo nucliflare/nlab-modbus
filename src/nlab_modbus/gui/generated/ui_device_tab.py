@@ -52,7 +52,20 @@ class Ui_DeviceTab(object):
         self.refresh_spinner.setMaximum(10000)
         self.refresh_spinner.setValue(250)
 
-        self.gridLayout.addWidget(self.refresh_spinner, 1, 2, 1, 1)
+        self.gridLayout.addWidget(self.refresh_spinner, 1, 1, 1, 1)
+
+        self.label_holding_refresh = QLabel(self.groupBox_3)
+        self.label_holding_refresh.setObjectName(u"label_holding_refresh")
+
+        self.gridLayout.addWidget(self.label_holding_refresh, 1, 2, 1, 1)
+
+        self.holding_refresh_spinner = QSpinBox(self.groupBox_3)
+        self.holding_refresh_spinner.setObjectName(u"holding_refresh_spinner")
+        self.holding_refresh_spinner.setMinimum(200)
+        self.holding_refresh_spinner.setMaximum(60000)
+        self.holding_refresh_spinner.setValue(1000)
+
+        self.gridLayout.addWidget(self.holding_refresh_spinner, 1, 3, 1, 1)
 
         self.label = QLabel(self.groupBox_3)
         self.label.setObjectName(u"label")
@@ -125,8 +138,9 @@ class Ui_DeviceTab(object):
         DeviceTab.setWindowTitle(QCoreApplication.translate("DeviceTab", u"Form", None))
         self.groupBox_3.setTitle(QCoreApplication.translate("DeviceTab", u"Device", None))
         self.clear_plot_btn.setText(QCoreApplication.translate("DeviceTab", u"Clear plot", None))
+        self.label_holding_refresh.setText(QCoreApplication.translate("DeviceTab", u"Holding (ms)", None))
         self.label.setText(QCoreApplication.translate("DeviceTab", u"Type", None))
-        self.label_3.setText(QCoreApplication.translate("DeviceTab", u"Refresh rate (ms)", None))
+        self.label_3.setText(QCoreApplication.translate("DeviceTab", u"Input (ms)", None))
         self.tab_disconnect_btn.setText(QCoreApplication.translate("DeviceTab", u"Disconnect", None))
         self.tab_disconnect_btn.setStyleSheet(QCoreApplication.translate("DeviceTab", u"background-color: #f8d7da; color: #721c24;", None))
         self.groupBox.setTitle(QCoreApplication.translate("DeviceTab", u"Holding registers (R/W)", None))

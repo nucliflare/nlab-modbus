@@ -59,15 +59,18 @@ class DevicePollingThread(QThread):
         self,
         device: BaseModbusDevice,
         refresh_rate_ms: int = 500,
+        holding_refresh_rate_ms: int = 1000,
         parent: Any | None = None,
     ) -> None:
         super().__init__(parent)
 
         self.device = device
         self.refresh_rate_ms = refresh_rate_ms
+        self.holding_refresh_rate_ms = holding_refresh_rate_ms
 
         self._stop_event = Event()
         self._write_queue: queue.Queue[RegisterWriteCommand] = queue.Queue()
+        self._last_holding_poll: float = 0.0
 
     # ---- thread lifecycle ----------------------------------------------
 
@@ -79,6 +82,7 @@ class DevicePollingThread(QThread):
             self.refresh_rate_ms,
         )
         self._t0 = time.perf_counter()
+        self._last_holding_poll = time.monotonic()
 
         try:
             while not self._stop_event.is_set():
@@ -89,11 +93,16 @@ class DevicePollingThread(QThread):
                     break
                 self._poll_device_once()
 
+                now = time.monotonic()
+                if now - self._last_holding_poll >= self.holding_refresh_rate_ms / 1000.0:
+                    if not self._stop_event.is_set():
+                        self._poll_holding_registers()
+                    self._last_holding_poll = now
+
                 elapsed = time.monotonic() - loop_start
                 refresh_period_s = self.refresh_rate_ms / 1000.0
                 sleep_time = max(0.0, refresh_period_s - elapsed)
                 if sleep_time > 0:
-                    # Returns immediately if stop() fires during the wait.
                     self._stop_event.wait(sleep_time)
         finally:
             logger.info("Polling thread stopped for device %s", self.device)
@@ -104,9 +113,12 @@ class DevicePollingThread(QThread):
         self._stop_event.set()
 
     def update_refresh_rate(self, new_value_ms: int) -> None:
-        """Change the polling interval. Safe to call from any thread; takes effect next cycle."""
-        # Read fresh each loop iteration in run(), so this takes effect next cycle.
+        """Change the input register polling interval. Safe to call from any thread."""
         self.refresh_rate_ms = new_value_ms
+
+    def update_holding_refresh_rate(self, new_value_ms: int) -> None:
+        """Change the holding register polling interval. Safe to call from any thread."""
+        self.holding_refresh_rate_ms = new_value_ms
 
     # ---- write path -----------------------------------------------------
 
@@ -158,20 +170,24 @@ class DevicePollingThread(QThread):
                 self._write_queue.task_done()
 
         if did_write and not self._stop_event.is_set():
-            try:
-                holding_values = self.device.get_all_holding_registers(raw=True)
-            except Exception as exc:
-                # A failed readback must NOT escape into run() and kill the loop.
-                logger.exception("Holding readback failed for device %s", self.device)
-                self.polling_failed.emit(str(exc))
-            else:
-                self.holding_registers_updated.emit(holding_values)
+            self._poll_holding_registers()
+            self._last_holding_poll = time.monotonic()
 
     def _execute_write(self, command: RegisterWriteCommand) -> None:
         """Write one raw register value to the device (no scaling)."""
         self.device.write(command.register_name, command.new_value, raw=True)
 
     # ---- read path ------------------------------------------------------
+
+    def _poll_holding_registers(self) -> None:
+        """Read all holding registers and emit the snapshot."""
+        try:
+            holding_values = self.device.get_all_holding_registers(raw=True)
+        except Exception as exc:
+            logger.exception("Holding poll failed for device %s", self.device)
+            self.polling_failed.emit(str(exc))
+            return
+        self.holding_registers_updated.emit(holding_values)
 
     def _poll_device_once(self) -> None:
         """Poll input registers once and emit a timestamped snapshot."""

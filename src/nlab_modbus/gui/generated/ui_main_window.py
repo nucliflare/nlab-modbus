@@ -204,7 +204,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"Form", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Local connection", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Port", None))
-        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Device ID", None))
+        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Modus adress", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Bandwith", None))
         self.baudrate_select.setItemText(0, QCoreApplication.translate("MainWindow", u"115200", None))
         self.baudrate_select.setItemText(1, QCoreApplication.translate("MainWindow", u"57600", None))
@@ -218,11 +218,11 @@ class Ui_MainWindow(object):
         self.local_type_select.setItemText(2, QCoreApplication.translate("MainWindow", u"PSU", None))
 
         self.scan_local_btn.setText(QCoreApplication.translate("MainWindow", u"Scan...", None))
-        self.local_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.local_btn.setStyleSheet(QCoreApplication.translate("MainWindow", u"background-color: #d4edda; color: #155724;", None))
+        self.local_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", u"Remote connection", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Host", None))
-        self.label_8.setText(QCoreApplication.translate("MainWindow", u"Device ID", None))
+        self.label_8.setText(QCoreApplication.translate("MainWindow", u"Modbus adress", None))
         self.label_7.setText(QCoreApplication.translate("MainWindow", u"Port", None))
         self.remote_port_select.setItemText(0, QCoreApplication.translate("MainWindow", u"5001", None))
         self.remote_port_select.setItemText(1, QCoreApplication.translate("MainWindow", u"5002", None))
@@ -233,8 +233,8 @@ class Ui_MainWindow(object):
         self.remote_type_select.setItemText(2, QCoreApplication.translate("MainWindow", u"PSU", None))
 
         self.scan_remote_btn.setText(QCoreApplication.translate("MainWindow", u"Scan...", None))
-        self.remote_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.remote_btn.setStyleSheet(QCoreApplication.translate("MainWindow", u"background-color: #d4edda; color: #155724;", None))
+        self.remote_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.devices_group.setTitle(QCoreApplication.translate("MainWindow", u"Devices", None))
     # retranslateUi
 
