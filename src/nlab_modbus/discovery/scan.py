@@ -140,37 +140,51 @@ def scan_remote_modbus_devices(
     if candidate_ids is None:
         candidate_ids = range(1, 17)  # 1 .. 16
 
+    candidate_ids_list = list(candidate_ids)
     found: list[dict] = []
-    logger.info("Remote scan: probing %s:%s for device IDs %s", host, port, list(candidate_ids))
+    logger.info("Remote scan: probing %s:%s for device IDs %s", host, port, candidate_ids_list)
 
-    for device_id in candidate_ids:
-        client = ModbusTcpClient(
-            host=host,
-            port=port,
-            framer=FramerType.RTU,
-            timeout=scan_timeout,
-            retries=0,
-        )
+    client = ModbusTcpClient(
+        host=host,
+        port=port,
+        framer=FramerType.RTU,
+        timeout=scan_timeout,
+        retries=0,
+    )
+    try:
+        if not client.connect():
+            logger.warning("Could not connect to %s:%s — skipping", host, port)
+            return found
+
+        # Prevent pymodbus from closing the connection after a few consecutive
+        # timeouts (default count_until_disconnect = retries+3 = 3).
         try:
-            client.connect()
-            result = client.read_input_registers(
-                address=0,
-                count=1,
-                device_id=device_id,
-            )
-            if not result.isError():
-                hardware_id = int(result.registers[0])
-                try:
-                    device_type = DeviceType(hardware_id >> 8)
-                except ValueError:
-                    logger.warning("%s:%s id=%d: unknown hardware_version=0x%04X — skipped", host, port, device_id, hardware_id)
-                    continue
-                found.append({"type": device_type, "device_id": device_id, "host": host, "port": port})
-                logger.info("Found %s:%s id=%d type=%s", host, port, device_id, device_type.name)
-        except Exception:
+            n = len(candidate_ids_list) + 5
+            client.transaction.count_until_disconnect = n
+            client.transaction.max_until_disconnect = n
+        except AttributeError:
             pass
-        finally:
-            client.close()
+
+        for device_id in candidate_ids_list:
+            try:
+                result = client.read_input_registers(
+                    address=0,
+                    count=1,
+                    device_id=device_id,
+                )
+                if not result.isError():
+                    hardware_id = int(result.registers[0])
+                    try:
+                        device_type = DeviceType(hardware_id >> 8)
+                    except ValueError:
+                        logger.warning("%s:%s id=%d: unknown hardware_version=0x%04X — skipped", host, port, device_id, hardware_id)
+                        continue
+                    found.append({"type": device_type, "device_id": device_id, "host": host, "port": port})
+                    logger.info("Found %s:%s id=%d type=%s", host, port, device_id, device_type.name)
+            except Exception:
+                continue
+    finally:
+        client.close()
 
     logger.info("Remote scan %s:%s complete: %d device(s) found", host, port, len(found))
     return found
