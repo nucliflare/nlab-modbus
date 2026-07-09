@@ -28,6 +28,7 @@ dev = [
     "matplotlib==3.10.9",
     "pip-licenses==5.5.5",
     "jupyter==1.1.1",
+    "bump-my-version==1.4.1",
 ]
 build = [
     "nuitka==4.1.2",
@@ -49,3 +50,15 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "nlab_modbus.data" = ["*.csv"]
+
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+tag = true
+tag_name = "v{new_version}"
+tag_message = "Release {new_version}"
+message = "chore: bump version {current_version} -> {new_version}"
+allow_dirty = false
+
+[[tool.bumpversion.files]]
+filename = "src/nlab_modbus/_version.py"

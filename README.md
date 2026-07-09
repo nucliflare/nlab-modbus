@@ -248,3 +248,4 @@ The three device types (SiPM, Geiger, PMT PSU) are identified by the **high byte
 
 - **Python**: ≥ 3.11  
 - **License**: MIT
+- **Releasing**: see [docs/RELEASING.md](docs/RELEASING.md) for the version scheme and the Gitea/GitHub release process
