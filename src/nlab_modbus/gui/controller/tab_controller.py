@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QHeaderView, QInputDialog, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
-from nlab_modbus.gui.model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, RegisterRow
+from nlab_modbus.gui.model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, ProtectedRowDelegate, RegisterRow
 from nlab_modbus.gui.model.ring_buffer import NumpyRingBuffer
 from nlab_modbus.services.polling_worker import DevicePollingThread
 
@@ -80,6 +80,7 @@ class DeviceTab(QWidget):
     def _setup_register_tables(self) -> None:
         """Attach models to the two table views and apply column sizing."""
         self.ui.holding_table_view.setModel(self.holding_model)
+        self.ui.holding_table_view.setItemDelegate(ProtectedRowDelegate(self.ui.holding_table_view))
         self.ui.input_table_view.setModel(self.input_model)
 
         for table in (

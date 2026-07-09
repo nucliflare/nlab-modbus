@@ -42,6 +42,7 @@ def scan_local_modbus_devices(
     RTU devices respond in <10 ms on a healthy bus so 100 ms is still 10× headroom.
     """
     found: list[dict] = []
+    device_ids_list = list(device_ids)
     all_ports = list(list_ports.comports())
     logger.info("Local scan: found %d serial port(s): %s", len(all_ports), [p.device for p in all_ports])
 
@@ -65,7 +66,23 @@ def scan_local_modbus_devices(
                 logger.warning("Could not open %s — skipping", port)
                 continue
 
-            for device_id in device_ids:
+            # USB-CDC and RS-485 direction-control hardware needs a moment to
+            # settle after the port is opened; the first request fails silently
+            # without this delay.
+            time.sleep(0.05)
+
+            # pymodbus closes the connection after (retries+3+1) consecutive
+            # timeouts.  With retries=0 that is 4 misses — fewer than the
+            # number of IDs we probe.  Raise the limit so the connection stays
+            # open for the full scan and no close/reopen cycle disturbs the bus.
+            try:
+                n = len(device_ids_list) + 5
+                client.transaction.count_until_disconnect = n
+                client.transaction.max_until_disconnect = n
+            except AttributeError:
+                pass
+
+            for device_id in device_ids_list:
                 try:
                     result = client.read_input_registers(
                         address=0,

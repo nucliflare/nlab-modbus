@@ -1,6 +1,6 @@
 import asyncio
 import threading
-from contextlib import contextmanager
+import time
 from typing import Iterable
 
 from pymodbus.client import ModbusSerialClient, ModbusTcpClient
@@ -67,7 +67,7 @@ class DeviceManager:
         bytesize: int = 8,
         parity: str = "N",
         stopbits: int = 1,
-        timeout: float = 0.15,
+        timeout: float = 0.5,
         retries: int = 0,
     ) -> _ClientHandle:
         """Return the cached handle for this serial port, creating it if needed.
@@ -89,6 +89,11 @@ class DeviceManager:
                 timeout=timeout,
                 retries=retries,
             )
+            if not client.connect():
+                raise ConnectionError(f"Could not open serial port {port!r}")
+            # USB-CDC adapters and RS-485 direction-control hardware need a
+            # moment to settle before the first frame is sent reliably.
+            time.sleep(0.05)
             handle = _ClientHandle(client, key)
             self._handles[key] = handle
         return handle
@@ -246,6 +251,11 @@ class DeviceManager:
                     break
             else:
                 return
+            # Clear the key→device cache so reconnecting gets a fresh device
+            # with a fresh client, not a stale object pointing at a closed port.
+            stale = [k for k, v in self._devices_by_key.items() if v is device]
+            for k in stale:
+                del self._devices_by_key[k]
             # find the handle this device belonged to
             for handle in self._handles.values():
                 if handle.lock is device.bus_lock:
@@ -264,3 +274,4 @@ class DeviceManager:
             self._handles.clear()
             self.local.clear()
             self.remote.clear()
+            self._devices_by_key.clear()

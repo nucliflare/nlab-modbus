@@ -10,6 +10,8 @@ from PySide6.QtCore import (
     Qt,
     Signal,
 )
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import QStyle, QStyledItemDelegate
 
 
 @dataclass
@@ -30,6 +32,21 @@ class RegisterRow:
     min_val: int = -0x8000
     max_val: int = 0x7FFF
     description: str = ""
+
+
+class ProtectedRowDelegate(QStyledItemDelegate):
+    """Replaces the selection highlight with a muted tone for password-protected rows."""
+
+    def initStyleOption(self, option, index) -> None:
+        super().initStyleOption(option, index)
+        model = index.model()
+        if not hasattr(model, "_rows") or not hasattr(model, "_service_mode"):
+            return
+        row = model._rows[index.row()]
+        if row.password_protected and not model._service_mode:
+            if option.state & QStyle.StateFlag.State_Selected:
+                option.palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.Highlight, QColor(200, 215, 230))
+                option.palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.HighlightedText, QColor(120, 120, 120))
 
 
 class HoldingRegisterTableModel(QAbstractTableModel):
@@ -95,6 +112,10 @@ class HoldingRegisterTableModel(QAbstractTableModel):
 
         if role == Qt.ItemDataRole.ToolTipRole:
             return row.description or None
+
+        if role == Qt.ItemDataRole.ForegroundRole:
+            if row.password_protected and not self._service_mode:
+                return QColor(160, 160, 160)
 
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
             if col == self.COL_ID:
