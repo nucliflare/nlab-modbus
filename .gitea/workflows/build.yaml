@@ -32,7 +32,7 @@ jobs:
         if: matrix.name == 'ubuntu'
         run: |
           apt-get update
-          apt-get install -y python3.11-venv python3.11-dev \
+          apt-get install -y python3.12-venv python3.12-dev \
             libgl1 libegl1 libxkbcommon0 libxcb-cursor0 libxcb-icccm4 \
             libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
             libxcb-xinerama0 patchelf
