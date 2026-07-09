@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QSettings, QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QInputDialog,
@@ -67,6 +67,7 @@ class ModbusMainWindow(QMainWindow):
         self._setup_menu_bar()
         self._setup_status_bar()
         self._connect_signals()
+        self._restore_settings()
 
     def _apply_initial_baudrate(self, baudrate: int) -> None:
         """Set the initial baud rate on the spinbox before the first scan runs."""
@@ -373,9 +374,17 @@ class ModbusMainWindow(QMainWindow):
         if isinstance(tab, DeviceTab):
             tab.clear_buffers()
 
+    def _restore_settings(self) -> None:
+        settings = QSettings("EWT", "nlab-modbus-gui")
+        debug = settings.value("view/debug_mode", False, type=bool)
+        self.action_debug_mode.setChecked(debug)
+        if hasattr(self, "_log_status_bar"):
+            self._log_status_bar.set_debug_mode(debug)
+
     def _on_debug_mode_toggled(self, checked: bool) -> None:
         if hasattr(self, "_log_status_bar"):
             self._log_status_bar.set_debug_mode(checked)
+        QSettings("EWT", "nlab-modbus-gui").setValue("view/debug_mode", checked)
 
     def on_service_mode_toggled(self, checked: bool) -> None:
         tab = self.ui.device_tabs.currentWidget()
