@@ -11,7 +11,7 @@ jobs:
       matrix:
         include:
           - name: windows
-            runs-on: windows-local
+            runs-on: windows-latest
             python-exe: python
             venv-python: .venv/Scripts/python.exe
             artifact: build/nlab-modbus-gui.exe
@@ -24,8 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python (GitHub-hosted runner only)
-        if: matrix.name == 'ubuntu'
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
