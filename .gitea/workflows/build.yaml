@@ -56,3 +56,18 @@ jobs:
         with:
           name: nlab-modbus-gui-${{ matrix.name }}
           path: ${{ matrix.artifact }}
+
+  release:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-local
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: dist
+
+      - name: Create Gitea Release
+        uses: actions/gitea-release-action@v1
+        with:
+          files: dist/**/*
