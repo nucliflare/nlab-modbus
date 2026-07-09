@@ -17,7 +17,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QGroupBox,
     QHBoxLayout, QLabel, QPushButton, QSizePolicy,
-    QSpacerItem, QTabWidget, QVBoxLayout, QWidget)
+    QSpacerItem, QSpinBox, QTabWidget, QVBoxLayout,
+    QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -64,13 +65,12 @@ class Ui_MainWindow(object):
 
         self.gridLayout.addWidget(self.label_2, 1, 0, 1, 1)
 
-        self.baudrate_select = QComboBox(self.groupBox)
-        self.baudrate_select.addItem("")
-        self.baudrate_select.addItem("")
-        self.baudrate_select.addItem("")
-        self.baudrate_select.addItem("")
-        self.baudrate_select.addItem("")
+        self.baudrate_select = QSpinBox(self.groupBox)
         self.baudrate_select.setObjectName(u"baudrate_select")
+        self.baudrate_select.setMinimum(9600)
+        self.baudrate_select.setMaximum(115200)
+        self.baudrate_select.setSingleStep(100)
+        self.baudrate_select.setValue(115200)
 
         self.gridLayout.addWidget(self.baudrate_select, 1, 1, 1, 1)
 
@@ -206,12 +206,6 @@ class Ui_MainWindow(object):
         self.label.setText(QCoreApplication.translate("MainWindow", u"Port", None))
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"Modus adress", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Bandwith", None))
-        self.baudrate_select.setItemText(0, QCoreApplication.translate("MainWindow", u"115200", None))
-        self.baudrate_select.setItemText(1, QCoreApplication.translate("MainWindow", u"57600", None))
-        self.baudrate_select.setItemText(2, QCoreApplication.translate("MainWindow", u"38400", None))
-        self.baudrate_select.setItemText(3, QCoreApplication.translate("MainWindow", u"19200", None))
-        self.baudrate_select.setItemText(4, QCoreApplication.translate("MainWindow", u"9600", None))
-
         self.label_type_local.setText(QCoreApplication.translate("MainWindow", u"Type", None))
         self.local_type_select.setItemText(0, QCoreApplication.translate("MainWindow", u"SIPM", None))
         self.local_type_select.setItemText(1, QCoreApplication.translate("MainWindow", u"GEIGER", None))

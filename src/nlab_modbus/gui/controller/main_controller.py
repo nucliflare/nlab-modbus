@@ -69,15 +69,8 @@ class ModbusMainWindow(QMainWindow):
         self._connect_signals()
 
     def _apply_initial_baudrate(self, baudrate: int) -> None:
-        """Pre-select a baud rate in the combo before the first scan runs."""
-        combo = self.ui.baudrate_select
-        index = combo.findText(str(baudrate))
-        if index >= 0:
-            combo.setCurrentIndex(index)
-        else:
-            combo.insertItem(0, str(baudrate))
-            combo.setCurrentIndex(0)
-            logger.warning("Baud rate %d not in combo list — added dynamically", baudrate)
+        """Set the initial baud rate on the spinbox before the first scan runs."""
+        self.ui.baudrate_select.setValue(baudrate)
 
     def _setup_window(self) -> None:
         """
@@ -133,7 +126,7 @@ class ModbusMainWindow(QMainWindow):
     def on_connect_local_clicked(self) -> None:
         """Local Modbus connection handler."""
         port = self.ui.port_select.currentText()
-        baudrate = int(self.ui.baudrate_select.currentText())
+        baudrate = self.ui.baudrate_select.value()
         device_id = int(self.ui.local_id_select.currentText())
         device_type = self.ui.local_type_select.currentText()
         try:
@@ -259,7 +252,7 @@ class ModbusMainWindow(QMainWindow):
 
     def _scan_local_devices(self) -> None:
         """Scan local COM ports for Modbus devices at the selected baud rate."""
-        baudrate = int(self.ui.baudrate_select.currentText())
+        baudrate = self.ui.baudrate_select.value()
         logger.info("=== Local scan started (baudrate=%d, id range=%d–%d) ===", baudrate, self._scan_id_range.start, self._scan_id_range.stop - 1)
         local_devices = scan_local_modbus_devices(device_ids=self._scan_id_range, baudrate=baudrate)
         self.available_devices["local"] = {}
