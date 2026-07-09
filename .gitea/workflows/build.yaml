@@ -68,6 +68,6 @@ jobs:
           path: dist
 
       - name: Create Gitea Release
-        uses: actions/gitea-release-action@v1
+        uses: akkuman/gitea-release-action@v1
         with:
           files: dist/**/*

@@ -66,7 +66,7 @@ it:
    The Gitea Actions workflow (`.gitea/workflows/build.yaml`) builds the
    Windows and Linux binaries, then a `release` job downloads both and
    publishes them as assets on the Gitea Release for tag `vX.Y.Z` (via
-   `actions/gitea-release-action`). This stays internal to the Gitea
+   `akkuman/gitea-release-action`). This stays internal to the Gitea
    instance, but gives teammates a stable, discoverable download link
    instead of digging through Actions-run artifacts (which expire).
 3. Once the internal build is verified, publish the same commit + tag to
