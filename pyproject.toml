@@ -52,7 +52,7 @@ where = ["src"]
 "nlab_modbus.data" = ["*.csv"]
 
 [tool.bumpversion]
-current_version = "0.2.1"
+current_version = "0.2.2"
 commit = true
 tag = true
 tag_name = "v{new_version}"
