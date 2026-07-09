@@ -95,7 +95,7 @@ def scan_local_modbus_devices(
 
                     hardware_id = int(result.registers[0])
                     try:
-                        device_type = DeviceType(hardware_id)
+                        device_type = DeviceType(hardware_id >> 8)
                     except ValueError:
                         logger.warning("%s id=%d: unknown hardware_version=0x%04X — skipped", port, device_id, hardware_id)
                         continue
@@ -161,7 +161,7 @@ def scan_remote_modbus_devices(
             if not result.isError():
                 hardware_id = int(result.registers[0])
                 try:
-                    device_type = DeviceType(hardware_id)
+                    device_type = DeviceType(hardware_id >> 8)
                 except ValueError:
                     logger.warning("%s:%s id=%d: unknown hardware_version=0x%04X — skipped", host, port, device_id, hardware_id)
                     continue

@@ -146,20 +146,35 @@ class ModbusMainWindow(QMainWindow):
         self.add_device_tab(device)
 
     def _check_hardware_version(self, device, selected_type: str) -> bool:
-        """Read hardware_version and confirm with the user on mismatch.
+        """Read hardware_version and firmware_version; confirm with the user on type mismatch.
 
         Returns True if the tab should be opened, False if the user cancelled.
         """
         try:
-            hw_version = device.read("hardware_version")
+            hw_raw = device.read("hardware_version")
+            hw_type = (hw_raw >> 8) & 0xFF
+            hw_rev  = hw_raw & 0xFF
+
+            fw_raw   = device.read("firmware_version")
+            fw_major = (fw_raw >> 8) & 0xFF
+            fw_minor = fw_raw & 0xFF
+
+            logger.info(
+                "%s hardware rev=%d  firmware=%d.%d",
+                device.connection_info(), hw_rev, fw_major, fw_minor,
+            )
+
             expected = DeviceType[selected_type]
-            if hw_version != expected.value:
-                actual_name = next((t.name for t in DeviceType if t.value == hw_version), f"unknown (0x{hw_version:04X})")
+            if hw_type != expected.value:
+                actual_name = next(
+                    (t.name for t in DeviceType if t.value == hw_type),
+                    f"unknown (type=0x{hw_type:02X})",
+                )
                 answer = QMessageBox.question(
                     self,
                     "Device Type Mismatch",
                     f"Selected type: {selected_type}\n"
-                    f"Hardware reports: {actual_name} (version={hw_version})\n\n"
+                    f"Hardware reports: {actual_name} (rev={hw_rev}, fw={fw_major}.{fw_minor})\n\n"
                     "The register map may not match the device.\n"
                     "Open tab anyway?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

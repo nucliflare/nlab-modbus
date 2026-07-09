@@ -2,8 +2,17 @@ from enum import IntEnum
 
 
 class DeviceType(IntEnum):
-    """Modbus device type identifiers based on hardware_version register values."""
+    """Device type identifier from the high byte of the hardware_version register.
 
-    SIPM = 257
-    GEIGER = 513
-    PSU = 769
+    hardware_version register layout (uint16):
+        high byte = device type  (this enum)
+        low byte  = board revision
+
+    firmware_version register layout (uint16):
+        high byte = firmware major
+        low byte  = firmware minor
+    """
+
+    SIPM   = 1   # 0x01xx
+    GEIGER = 2   # 0x02xx
+    PSU    = 3   # 0x03xx
