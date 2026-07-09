@@ -126,7 +126,7 @@ def scan_remote_modbus_devices(
     host: str,
     port: int,
     candidate_ids: range | None = None,
-    scan_timeout: float = 0.02,
+    scan_timeout: float = 0.05,
 ) -> list[dict]:
     """
     Scan for Modbus devices on the given TCP host:port by reading the
