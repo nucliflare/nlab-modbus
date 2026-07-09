@@ -6,11 +6,20 @@ A PySide6 desktop application and Python library for monitoring and controlling 
 
 ## Supported devices
 
-| Device | `DeviceType` | Hardware version | Description |
+| Device | `DeviceType` | Type byte | Description |
 |---|---|---|---|
-| SiPM board | `SIPM` | 257 | Bias voltage (15.0–78.0 V), temperature compensation, LED driver |
-| Geiger-Mueller probe | `GEIGER` | 513 | HV generation (50–650 V), pulse counting, dose rate (mSv/h), dose calibration |
-| PMT HV supply | `PSU` | 769 | High-voltage bias for photomultiplier tubes, current monitoring |
+| SiPM board | `SIPM` | `0x01` | Bias voltage (15.0–78.0 V), temperature compensation, LED driver |
+| Geiger-Mueller probe | `GEIGER` | `0x02` | HV generation (50–650 V), pulse counting, dose rate (mSv/h), dose calibration |
+| PMT HV supply | `PSU` | `0x03` | High-voltage bias for photomultiplier tubes, current monitoring |
+
+Device identity is encoded in the `hardware_version` input register (address 0) as a uint16:
+
+```
+hardware_version  =  [ type byte (high) | board revision (low) ]
+firmware_version  =  [ major (high)     | minor (low)          ]
+```
+
+For example, `hardware_version = 0x0101` → type `0x01` (SIPM), board revision 1; `firmware_version = 0x0002` → firmware 0.2. `DeviceType` is matched against the high byte only, so the enum value remains stable across board revisions.
 
 ---
 
@@ -102,6 +111,8 @@ uv run nlab-modbus-gui --baudrate 9600 --start-id 1 --end-id 4
 
 Serial framing is fixed at **8N1** (8 data bits, no parity, 1 stop bit) — the hardware does not support other configurations.
 
+> **Dual USB connections**: each board exposes two separate COM ports when connected via USB. The **MicroUSB** port is a USB-CDC virtual serial port — the baud rate configured on the PC side is irrelevant, the firmware always responds at its internal USB speed regardless of what you select. The **RS-485** port goes through a USB-to-RS-485 adapter and uses a real physical baud rate that must match the value stored in the device's `rs485_baud` holding register (default 115200; the board ships with 9600 if previously configured). Use `--baudrate 9600` (or the matching value) when scanning for devices connected over RS-485.
+
 Click **Scan…** next to the Connect button to re-probe all local serial ports using the current baud rate, without restarting the application. Use this after changing the baud rate combo or plugging in a new device.
 
 **Remote (TCP / ser2net)**
@@ -117,9 +128,9 @@ Use **Connection → Scan for available devices** (or press **F5**) to run both 
 
 Multiple devices can be connected simultaneously. Each gets its own tab.
 
-**Hardware version check**
+**Hardware and firmware version check**
 
-After a successful connection the application reads the device's `hardware_version` register and compares it to the selected type. If they do not match a dialog asks whether to open the tab anyway — the register map may not match the physical hardware, so the default answer is *No*.
+After a successful connection the application reads both `hardware_version` and `firmware_version`. The type byte of `hardware_version` is compared against the selected device type. If they do not match a dialog reports the detected type, board revision, and firmware version, and asks whether to open the tab anyway — the register map may not match the physical hardware, so the default answer is *No*. On a successful match, board revision and firmware version are logged to the status bar for diagnostics.
 
 ### Device tab
 
@@ -132,7 +143,8 @@ Each connected device opens a tab labelled with its connection string (e.g. `ser
 | **Plot** column | Check the *Plot* box next to any input register to add a live time-series trace to the chart. Multiple registers can be plotted simultaneously. |
 | **Clear Plot** button | Resets all ring buffers and the time axis. |
 | **Disconnect** button | Stops the polling thread and removes the tab. |
-| **Refresh rate** spinner | Adjusts the polling interval in milliseconds (100–10 000 ms). Changes take effect immediately without reconnecting. |
+| **Input (ms)** spinner | Polling interval for input (read-only) registers in milliseconds (100–10 000 ms, default 250 ms). Changes take effect immediately. |
+| **Holding (ms)** spinner | Polling interval for holding (read/write) registers in milliseconds (200–60 000 ms, default 1000 ms). Holding registers change infrequently so a slower rate reduces bus traffic. Changes take effect immediately. |
 
 ### Status bar
 
@@ -230,7 +242,7 @@ manager.close_all()
 
 The mDNS auto-discovery uses the service name `nucliflare` — this is specific to [Eastern Wall Technologies](https://ewt.tech) ser2net bridge boards. If your hardware advertises a different service name, pass `name_filter` to `scan_remote_boards()` or set it to `None` to discover all mDNS services.
 
-The three device types (SiPM, Geiger, PMT PSU) are identified by their `hardware_version` register (input register 0). Adding support for a new device type requires a register map in `maps/`, a device subclass in `devices/`, and an entry in the `DeviceType` enum.
+The three device types (SiPM, Geiger, PMT PSU) are identified by the **high byte** of the `hardware_version` input register (address 0); the low byte carries the board revision and is ignored for type matching. Adding support for a new device type requires a register map in `maps/`, a device subclass in `devices/`, and a new `DeviceType` member whose value equals the expected type byte.
 
 ## Project information
 
