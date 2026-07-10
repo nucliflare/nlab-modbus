@@ -32,12 +32,23 @@ jobs:
         if: matrix.name == 'ubuntu'
         run: |
           apt-get update
-          apt-get install -y python3.12-venv python3.12-dev \
+          apt-get install -y curl \
             libgl1 libegl1 libxkbcommon0 libxcb-cursor0 libxcb-icccm4 \
             libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
             libxcb-xinerama0 patchelf
 
-      - name: Create venv
+      - name: Install uv and Python 3.12 (Linux only)
+        if: matrix.name == 'ubuntu'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Create venv (Linux)
+        if: matrix.name == 'ubuntu'
+        run: uv venv --seed --python 3.12 .venv
+
+      - name: Create venv (Windows)
+        if: matrix.name == 'windows'
         run: ${{ matrix.python-exe }} -m venv .venv
 
       - name: Install
