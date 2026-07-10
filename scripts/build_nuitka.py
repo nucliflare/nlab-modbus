@@ -31,6 +31,9 @@ def build() -> int:
         "nuitka",
         "--standalone",
         "--onefile",
+        # Non-interactive CI runners can't answer Nuitka's prompt to fetch
+        # helper tools (e.g. Dependency Walker on Windows) on first use.
+        "--assume-yes-for-downloads",
         f"--output-dir={OUTPUT}",
         f"--output-filename={OUTPUT_NAME}",
         # PySide6 plugin handles Qt binaries, translations, etc.
