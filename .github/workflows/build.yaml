@@ -53,7 +53,7 @@ jobs:
         run: ${{ matrix.venv-python }} scripts/gui_compiler.py
 
       - name: Build
-        run: ${{ matrix.venv-python }} scripts/build_nuitka.py
+        run: ${{ matrix.venv-python }} scripts/build_pyinstaller.py
 
       - uses: actions/upload-artifact@v4
         with:

@@ -19,8 +19,10 @@ Everything else derives from it, nothing else stores its own copy:
 
 - `pyproject.toml` reads it dynamically (`tool.setuptools.dynamic`), so the
   built package and `pip show` report the same number.
-- `scripts/build_nuitka.py` imports it directly to stamp the Windows `.exe`
-  version resource.
+- `scripts/build_pyinstaller.py` imports it directly to stamp the Windows
+  `.exe` version resource (via a generated PyInstaller version-info file).
+  `scripts/build_nuitka.py` still exists as a manual fallback build path and
+  does the same, but isn't used by CI.
 - The git tag that triggers a release (`vX.Y.Z`) is expected to match it
   exactly. `scripts/check_release_tag.py` runs as the first CI step on both
   Gitea and GitHub and **fails the build** if the pushed tag and
