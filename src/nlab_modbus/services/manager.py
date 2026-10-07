@@ -25,11 +25,12 @@ class _ClientHandle:
     bus never interleave frames.
     """
 
-    __slots__ = ("client", "lock", "key", "_refcount")
+    __slots__ = ("client", "lock", "key", "configuration", "_refcount")
 
-    def __init__(self, client, key: tuple):
+    def __init__(self, client, key: tuple, configuration: tuple | None = None):
         self.client = client
         self.key = key
+        self.configuration = configuration
         self.lock = threading.RLock()
         self._refcount = 0
 
@@ -77,6 +78,7 @@ class DeviceManager:
         pymodbus connects lazily on the first transaction.
         """
         key = ("serial", port)
+        configuration = (baudrate, bytesize, parity.upper(), stopbits)
         handle = self._handles.get(key)
         if handle is None:
             client = ModbusSerialClient(
@@ -94,8 +96,18 @@ class DeviceManager:
             # USB-CDC adapters and RS-485 direction-control hardware need a
             # moment to settle before the first frame is sent reliably.
             time.sleep(0.05)
-            handle = _ClientHandle(client, key)
+            handle = _ClientHandle(client, key, configuration)
             self._handles[key] = handle
+        elif handle.configuration != configuration:
+            if handle.configuration is None:
+                raise RuntimeError(f"Serial handle for {port!r} has no configuration")
+            current_baud, current_bytesize, current_parity, current_stopbits = handle.configuration
+            raise ValueError(
+                f"Serial port {port!r} is already open as "
+                f"{current_baud}/{current_bytesize}{current_parity}{current_stopbits}; "
+                f"disconnect its devices before using "
+                f"{baudrate}/{bytesize}{parity.upper()}{stopbits}"
+            )
         return handle
 
     def _get_or_create_tcp_handle(self, host: str, port: int) -> _ClientHandle:
@@ -127,6 +139,11 @@ class DeviceManager:
         key = (handle.key, device_id)  # e.g. (("serial", "COM3"), 4)
         existing = self._devices_by_key.get(key)
         if existing is not None:
+            if existing.device_type != device_type:
+                raise ValueError(
+                    f"Device {device_id} on {handle.key!r} is already registered "
+                    f"as {existing.device_type.name}, not {device_type.name}"
+                )
             return existing  # genuinely the same object, every time
         device = create_device(handle.client, device_id, device_type)
         device.bus_lock = handle.lock
@@ -149,6 +166,41 @@ class DeviceManager:
     def get_all_devices(self):
         """Alias for all_devices; retained for backwards compatibility."""
         return [*self.local, *self.remote]
+
+    def find_device(self, transport: tuple, device_id: int) -> BaseModbusDevice | None:
+        """Return an already registered device for a transport/address pair."""
+        with self._registry_lock:
+            return self._devices_by_key.get((transport, device_id))
+
+    def discovery_snapshot(self) -> dict[str, list[dict]]:
+        """Describe registered devices without exposing manager internals.
+
+        The GUI uses this snapshot to retain devices on transports that an
+        active scan deliberately skips because they are already in use.
+        """
+        snapshot: dict[str, list[dict]] = {"local": [], "remote": []}
+        with self._registry_lock:
+            for (transport, device_id), device in self._devices_by_key.items():
+                kind, *location = transport
+                if kind == "serial":
+                    snapshot["local"].append(
+                        {
+                            "type": device.device_type,
+                            "device_id": device_id,
+                            "host": None,
+                            "port": location[0],
+                        }
+                    )
+                elif kind == "tcp":
+                    snapshot["remote"].append(
+                        {
+                            "type": device.device_type,
+                            "device_id": device_id,
+                            "host": location[0],
+                            "port": location[1],
+                        }
+                    )
+        return snapshot
 
     # ---- local ----------------------------------------------------------
 
@@ -212,12 +264,17 @@ class DeviceManager:
             handle = self._get_or_create_tcp_handle(host, port)
             return self._attach(handle, device_id, device_type, self.remote)
 
-    def scan_remote(self, host: str, ports: int | list):
+    def scan_remote(
+        self,
+        host: str,
+        ports: int | list,
+        candidate_ids: Iterable[int] = range(1, 17),
+    ):
         """Auto-discover and register all devices on the given TCP host and port(s)."""
         if isinstance(ports, int):
             ports = [ports]
         for port in ports:
-            found = scan_remote_modbus_devices(host, port)
+            found = scan_remote_modbus_devices(host, port, candidate_ids=candidate_ids)
             with self._registry_lock:
                 for params in found:
                     handle = self._get_or_create_tcp_handle(host, port)

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
-from typing import Iterable
+from collections.abc import Callable, Iterable
+from ipaddress import ip_address
 
 from pymodbus.client import ModbusSerialClient, ModbusTcpClient
-from pymodbus.exceptions import ModbusException
 from pymodbus.framer import FramerType
 from serial.tools import list_ports
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf, ZeroconfServiceTypes
@@ -16,6 +17,78 @@ logging.getLogger("pymodbus").setLevel(logging.CRITICAL)
 
 logger = logging.getLogger(__name__)
 
+StopPredicate = Callable[[], bool]
+
+
+def _normalise_device_ids(device_ids: Iterable[int]) -> list[int]:
+    """Materialise, validate, and de-duplicate Modbus server addresses."""
+    normalised: list[int] = []
+    seen: set[int] = set()
+    for value in device_ids:
+        device_id = int(value)
+        # Firmware accepts 1..254 (the holding-register map exposes the same
+        # range), even though the upper addresses are reserved by Modbus.org.
+        if not 1 <= device_id <= 254:
+            raise ValueError(f"Modbus device ID must be in the range 1..254, got {device_id}")
+        if device_id not in seen:
+            normalised.append(device_id)
+            seen.add(device_id)
+    return normalised
+
+
+def _stopped(should_stop: StopPredicate | None) -> bool:
+    return should_stop is not None and should_stop()
+
+
+def _usable_discovery_address(address: str) -> bool:
+    """Reject IPv6 link-local addresses that lack an interface scope."""
+    try:
+        parsed = ip_address(address)
+    except ValueError:
+        return False
+    return not (parsed.version == 6 and parsed.is_link_local)
+
+
+def _keep_client_open_during_scan(client, probe_count: int) -> None:
+    """Raise pymodbus' consecutive-timeout limit for a finite address scan."""
+    try:
+        threshold = probe_count + 5
+        client.transaction.count_until_disconnect = threshold
+        client.transaction.max_until_disconnect = threshold
+    except AttributeError:
+        # These are pymodbus implementation details and may not exist in a
+        # future version. Scanning still works, but the client may reconnect.
+        pass
+
+
+def _identify_response(
+    result,
+    *,
+    endpoint: str,
+    device_id: int,
+) -> tuple[DeviceType, int] | None:
+    """Return the device type and hardware ID for a successful probe response."""
+    if result.isError():
+        return None
+
+    try:
+        hardware_id = int(result.registers[0])
+    except (AttributeError, IndexError, TypeError, ValueError):
+        logger.debug("%s id=%d returned no hardware_version register", endpoint, device_id)
+        return None
+
+    try:
+        device_type = DeviceType(hardware_id >> 8)
+    except ValueError:
+        logger.warning(
+            "%s id=%d: unknown hardware_version=0x%04X - skipped",
+            endpoint,
+            device_id,
+            hardware_id,
+        )
+        return None
+    return device_type, hardware_id
+
 
 def scan_local_modbus_devices(
     device_ids: Iterable[int] = range(1, 17),
@@ -25,81 +98,72 @@ def scan_local_modbus_devices(
     stopbits: int = 1,
     timeout: float = 0.1,
     retries: int = 0,
+    exclude_ports: Iterable[str] = (),
+    should_stop: StopPredicate | None = None,
 ) -> list[dict]:
-    """Probe every serial port for responding Modbus devices.
+    """Probe available serial ports for responding Modbus devices.
 
-    Opens each available COM/tty port in turn, then walks device_ids 1–16
-    and reads the hardware_version input register (address 0) from each.
-    A successful response identifies both the device type and its Modbus
-    address.  Each port is closed before moving to the next.
-
-    Returns a list of dicts with keys:
-        type (DeviceType), device_id (int), host (None), port (str),
-        description (str), hardware_id (int).
-
-    The 100 ms timeout and zero retries are chosen for speed: a missing device
-    silently times out in one slot rather than blocking the scan for seconds.
-    RTU devices respond in <10 ms on a healthy bus so 100 ms is still 10× headroom.
+    Ports in ``exclude_ports`` are not opened. This is useful while the GUI is
+    already polling a serial transport, since many operating systems do not
+    allow a second process handle for the same port. ``should_stop`` is checked
+    between probes so a background scan can be cancelled during application
+    shutdown.
     """
+    if timeout <= 0:
+        raise ValueError("Serial scan timeout must be greater than zero")
     found: list[dict] = []
-    device_ids_list = list(device_ids)
-    all_ports = list(list_ports.comports())
-    logger.info("Local scan: found %d serial port(s): %s", len(all_ports), [p.device for p in all_ports])
+    device_ids_list = _normalise_device_ids(device_ids)
+    excluded = set(exclude_ports)
+    all_ports = [port for port in list_ports.comports() if port.device not in excluded]
+    logger.info(
+        "Local scan: found %d unused serial port(s): %s",
+        len(all_ports),
+        [port.device for port in all_ports],
+    )
+    if excluded:
+        logger.info("Local scan: skipping ports already in use: %s", sorted(excluded))
 
     for port_info in all_ports:
+        if _stopped(should_stop):
+            logger.info("Local scan cancelled")
+            break
+
         port = port_info.device
         logger.debug("Probing %s (%s) at %d baud", port, port_info.description, baudrate)
-
-        client = ModbusSerialClient(
-            port=port,
-            framer=FramerType.RTU,
-            baudrate=baudrate,
-            bytesize=bytesize,
-            parity=parity,
-            stopbits=stopbits,
-            timeout=timeout,
-            retries=retries,
-        )
-
+        client = None
         try:
+            client = ModbusSerialClient(
+                port=port,
+                framer=FramerType.RTU,
+                baudrate=baudrate,
+                bytesize=bytesize,
+                parity=parity,
+                stopbits=stopbits,
+                timeout=timeout,
+                retries=retries,
+            )
             if not client.connect():
-                logger.warning("Could not open %s — skipping", port)
+                logger.warning("Could not open %s - skipping", port)
                 continue
 
-            # USB-CDC and RS-485 direction-control hardware needs a moment to
-            # settle after the port is opened; the first request fails silently
-            # without this delay.
+            # USB-CDC and RS-485 direction-control hardware may discard the
+            # first frame if it is sent immediately after opening the port.
             time.sleep(0.05)
-
-            # pymodbus closes the connection after (retries+3+1) consecutive
-            # timeouts.  With retries=0 that is 4 misses — fewer than the
-            # number of IDs we probe.  Raise the limit so the connection stays
-            # open for the full scan and no close/reopen cycle disturbs the bus.
-            try:
-                n = len(device_ids_list) + 5
-                client.transaction.count_until_disconnect = n
-                client.transaction.max_until_disconnect = n
-            except AttributeError:
-                pass
+            _keep_client_open_during_scan(client, len(device_ids_list))
 
             for device_id in device_ids_list:
+                if _stopped(should_stop):
+                    break
                 try:
                     result = client.read_input_registers(
                         address=0,
                         count=1,
                         device_id=device_id,
                     )
-
-                    if result.isError():
+                    identity = _identify_response(result, endpoint=port, device_id=device_id)
+                    if identity is None:
                         continue
-
-                    hardware_id = int(result.registers[0])
-                    try:
-                        device_type = DeviceType(hardware_id >> 8)
-                    except ValueError:
-                        logger.warning("%s id=%d: unknown hardware_version=0x%04X — skipped", port, device_id, hardware_id)
-                        continue
-
+                    device_type, hardware_id = identity
                     found.append(
                         {
                             "type": device_type,
@@ -110,13 +174,23 @@ def scan_local_modbus_devices(
                             "hardware_id": hardware_id,
                         }
                     )
-                    logger.info("Found %s id=%d type=%s on %s", port, device_id, device_type.name, port_info.description)
-
-                except (ModbusException, OSError, ValueError):
-                    continue
-
+                    logger.info(
+                        "Found %s id=%d type=%s on %s",
+                        port,
+                        device_id,
+                        device_type.name,
+                        port_info.description,
+                    )
+                except Exception as exc:
+                    logger.debug("No response from %s id=%d: %s", port, device_id, exc)
+        except Exception:
+            logger.warning("Could not scan serial port %s", port, exc_info=True)
         finally:
-            client.close()
+            if client is not None:
+                try:
+                    client.close()
+                except Exception:
+                    logger.debug("Failed to close scan client for %s", port, exc_info=True)
 
     logger.info("Local scan complete: %d device(s) found", len(found))
     return found
@@ -125,66 +199,76 @@ def scan_local_modbus_devices(
 def scan_remote_modbus_devices(
     host: str,
     port: int,
-    candidate_ids: range | None = None,
+    candidate_ids: Iterable[int] | None = None,
     scan_timeout: float = 0.05,
+    should_stop: StopPredicate | None = None,
 ) -> list[dict]:
-    """
-    Scan for Modbus devices on the given TCP host:port by reading the
-    ``hardware_version`` input register (address 0, count 1) from each
-    candidate device_id.
-
-    Returns a dict mapping ``device_id -> hardware_version`` for every
-    device that responded successfully.  Devices that don't answer or
-    return an error are silently skipped.
-    """
+    """Probe Modbus addresses on an RTU-over-TCP endpoint."""
     if candidate_ids is None:
-        candidate_ids = range(1, 17)  # 1 .. 16
+        candidate_ids = range(1, 17)
+    if not host.strip():
+        raise ValueError("Remote host cannot be empty")
+    if not 1 <= int(port) <= 65535:
+        raise ValueError(f"TCP port must be in the range 1..65535, got {port}")
+    if scan_timeout <= 0:
+        raise ValueError("Remote scan timeout must be greater than zero")
 
-    candidate_ids_list = list(candidate_ids)
+    candidate_ids_list = _normalise_device_ids(candidate_ids)
     found: list[dict] = []
     logger.info("Remote scan: probing %s:%s for device IDs %s", host, port, candidate_ids_list)
 
-    client = ModbusTcpClient(
-        host=host,
-        port=port,
-        framer=FramerType.RTU,
-        timeout=scan_timeout,
-        retries=0,
-    )
+    client = None
     try:
+        client = ModbusTcpClient(
+            host=host,
+            port=port,
+            framer=FramerType.RTU,
+            timeout=scan_timeout,
+            retries=0,
+        )
+        if _stopped(should_stop):
+            return found
         if not client.connect():
-            logger.warning("Could not connect to %s:%s — skipping", host, port)
+            logger.warning("Could not connect to %s:%s - skipping", host, port)
             return found
 
-        # Prevent pymodbus from closing the connection after a few consecutive
-        # timeouts (default count_until_disconnect = retries+3 = 3).
-        try:
-            n = len(candidate_ids_list) + 5
-            client.transaction.count_until_disconnect = n
-            client.transaction.max_until_disconnect = n
-        except AttributeError:
-            pass
+        _keep_client_open_during_scan(client, len(candidate_ids_list))
+        endpoint = f"{host}:{port}"
 
         for device_id in candidate_ids_list:
+            if _stopped(should_stop):
+                logger.info("Remote scan %s cancelled", endpoint)
+                break
             try:
                 result = client.read_input_registers(
                     address=0,
                     count=1,
                     device_id=device_id,
                 )
-                if not result.isError():
-                    hardware_id = int(result.registers[0])
-                    try:
-                        device_type = DeviceType(hardware_id >> 8)
-                    except ValueError:
-                        logger.warning("%s:%s id=%d: unknown hardware_version=0x%04X — skipped", host, port, device_id, hardware_id)
-                        continue
-                    found.append({"type": device_type, "device_id": device_id, "host": host, "port": port})
-                    logger.info("Found %s:%s id=%d type=%s", host, port, device_id, device_type.name)
-            except Exception:
-                continue
+                identity = _identify_response(result, endpoint=endpoint, device_id=device_id)
+                if identity is None:
+                    continue
+                device_type, hardware_id = identity
+                found.append(
+                    {
+                        "type": device_type,
+                        "device_id": device_id,
+                        "host": host,
+                        "port": port,
+                        "hardware_id": hardware_id,
+                    }
+                )
+                logger.info("Found %s id=%d type=%s", endpoint, device_id, device_type.name)
+            except Exception as exc:
+                logger.debug("No response from %s id=%d: %s", endpoint, device_id, exc)
+    except Exception:
+        logger.warning("Could not scan remote endpoint %s:%s", host, port, exc_info=True)
     finally:
-        client.close()
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                logger.debug("Failed to close scan client for %s:%s", host, port, exc_info=True)
 
     logger.info("Remote scan %s:%s complete: %d device(s) found", host, port, len(found))
     return found
@@ -194,47 +278,73 @@ def scan_remote_boards(
     timeout: float = 0.4,
     name_filter: str | None = "nucliflare",
     service_type: str | None = None,
-) -> list:
-    """One-shot mDNS scan. Returns {name: {...}} and cleans up before returning.
-
-    If name_filter is given, only devices whose service name contains that
-    substring are collected. If None, every device is collected.
-    """
+    should_stop: StopPredicate | None = None,
+) -> list[str]:
+    """Perform a bounded mDNS scan and return unique advertised IP addresses."""
+    if timeout <= 0:
+        raise ValueError("mDNS scan timeout must be greater than zero")
     zc = Zeroconf()
     found: dict = {}
+    found_lock = threading.Lock()
 
     class _Collector(ServiceListener):
         def add_service(self, zc_, type_, name):
-            if name_filter is not None and name_filter not in name:
-                return  # skip resolving entirely — cheaper than filtering after
+            if _stopped(should_stop):
+                return
+            if name_filter is not None and name_filter.casefold() not in name.casefold():
+                return
             info = zc_.get_service_info(type_, name, timeout=int(timeout * 1000))
             if not info:
                 return
-            found[name] = {
-                "type": type_,
-                "addresses": info.parsed_addresses(),
-                "port": info.port,
-                "server": info.server,
-                "properties": {(k.decode() if isinstance(k, bytes) else k): (v.decode() if isinstance(v, bytes) else v) for k, v in info.properties.items()},
-            }
+            with found_lock:
+                found[name] = {
+                    "type": type_,
+                    "addresses": info.parsed_addresses(),
+                    "port": info.port,
+                    "server": info.server,
+                    "properties": {
+                        (key.decode() if isinstance(key, bytes) else key): (
+                            value.decode() if isinstance(value, bytes) else value
+                        )
+                        for key, value in info.properties.items()
+                    },
+                }
 
         update_service = add_service
 
-        def remove_service(self, *a):
+        def remove_service(self, *args):
             pass
 
     try:
+        if _stopped(should_stop):
+            return []
         if service_type:
             types = [service_type]
         else:
             types = list(ZeroconfServiceTypes.find(zc=zc, timeout=timeout))
 
-        browsers = [ServiceBrowser(zc, t, _Collector()) for t in types]
-        time.sleep(timeout)
+        if not _stopped(should_stop):
+            # Keep browser objects alive until the discovery window closes.
+            browsers = [ServiceBrowser(zc, item, _Collector()) for item in types]
+            if browsers:
+                deadline = time.monotonic() + timeout
+                while not _stopped(should_stop):
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    time.sleep(min(0.05, remaining))
     finally:
         zc.close()
 
-    ips = [items["addresses"][0] for name, items in found.items()]
+    with found_lock:
+        ips = sorted(
+            {
+                address
+                for item in found.values()
+                for address in item["addresses"]
+                if address and _usable_discovery_address(address)
+            }
+        )
     if ips:
         logger.info("mDNS scan found %d board(s): %s", len(ips), ips)
     else:

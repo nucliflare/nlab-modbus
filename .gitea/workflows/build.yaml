@@ -14,15 +14,20 @@ jobs:
             runs-on: windows-local
             python-exe: python
             venv-python: .venv/Scripts/python.exe
-            artifact: build/nlab-modbus-gui.exe
+            package: build/nlab-modbus-gui.exe
           - name: ubuntu
             runs-on: ubuntu-local
             python-exe: python3
             venv-python: .venv/bin/python
-            artifact: build/nlab-modbus-gui
+            package: dist/nlab-modbus-gui-ubuntu.tar.gz
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        if: matrix.name == 'windows'
+        with:
+          python-version: "3.12"
 
       - name: Verify tag matches package version
         if: github.event_name == 'push'
@@ -37,48 +42,68 @@ jobs:
             libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
             libxcb-xinerama0 patchelf
 
-      - name: Install uv and Python 3.12 (Linux only)
+      - name: Create venv (Windows)
+        if: matrix.name == 'windows'
+        run: python -m venv .venv
+
+      - name: Create venv (Linux - uv downloads Python 3.12 automatically)
         if: matrix.name == 'ubuntu'
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          uv venv --python 3.12 --seed .venv
 
-      - name: Create venv (Linux)
-        if: matrix.name == 'ubuntu'
-        run: uv venv --seed --python 3.12 .venv
-
-      - name: Create venv (Windows)
-        if: matrix.name == 'windows'
-        run: ${{ matrix.python-exe }} -m venv .venv
-
-      - name: Install
+      - name: Install locked dependencies
         run: |
           ${{ matrix.venv-python }} -m pip install --upgrade pip uv
-          ${{ matrix.venv-python }} -m uv pip install -e ".[gui,build]"
+          ${{ matrix.venv-python }} -m uv sync --locked --extra gui --extra build
 
       - name: Generate UI modules
         run: ${{ matrix.venv-python }} scripts/gui_compiler.py
 
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ${{ matrix.venv-python }} -m unittest discover -s tests -v
+
       - name: Build
         run: ${{ matrix.venv-python }} scripts/build_pyinstaller.py
 
+      - name: Package build (Linux)
+        if: matrix.name == 'ubuntu'
+        run: |
+          mkdir -p dist
+          tar -czf ${{ matrix.package }} -C build nlab-modbus-gui
+
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3-node20
         with:
           name: nlab-modbus-gui-${{ matrix.name }}
-          path: ${{ matrix.artifact }}
+          path: ${{ matrix.package }}
+          if-no-files-found: error
 
   release:
     needs: build
     if: github.event_name == 'push'
     runs-on: ubuntu-local
+    permissions:
+      actions: read
+      releases: write
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v3-node20
         with:
           path: dist
 
+      - name: Package Windows release archive
+        run: |
+          cd dist/nlab-modbus-gui-windows
+          python3 -m zipfile -c nlab-modbus-gui-windows.zip nlab-modbus-gui.exe
+
       - name: Create Gitea Release
-        uses: akkuman/gitea-release-action@v1
+        uses: https://gitea.com/actions/gitea-release-action@v1
         with:
-          files: dist/**/*
+          token: ${{ secrets.GITEA_TOKEN }}
+          files: |
+            dist/**/*.zip
+            dist/**/*.tar.gz

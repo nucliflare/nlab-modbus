@@ -51,8 +51,10 @@ class DevicePollingThread(QThread):
 
     write_succeeded = Signal(str)
     write_failed = Signal(str)
+    transport_changed = Signal(str)
 
     polling_failed = Signal(str)
+    connection_lost = Signal(str)
     stopped = Signal()
 
     def __init__(
@@ -60,6 +62,9 @@ class DevicePollingThread(QThread):
         device: BaseModbusDevice,
         refresh_rate_ms: int = 500,
         holding_refresh_rate_ms: int = 1000,
+        max_consecutive_failures: int = 3,
+        max_writes_per_cycle: int = 8,
+        initial_input_values: dict[str, Any] | None = None,
         parent: Any | None = None,
     ) -> None:
         super().__init__(parent)
@@ -67,10 +72,14 @@ class DevicePollingThread(QThread):
         self.device = device
         self.refresh_rate_ms = refresh_rate_ms
         self.holding_refresh_rate_ms = holding_refresh_rate_ms
+        self.max_consecutive_failures = max(1, max_consecutive_failures)
+        self.max_writes_per_cycle = max(1, max_writes_per_cycle)
 
         self._stop_event = Event()
         self._write_queue: queue.Queue[RegisterWriteCommand] = queue.Queue()
         self._last_holding_poll: float = 0.0
+        self._consecutive_failures = 0
+        self._input_values_cache = dict(initial_input_values or {})
 
     # ---- thread lifecycle ----------------------------------------------
 
@@ -91,10 +100,22 @@ class DevicePollingThread(QThread):
                 self._process_pending_writes()
                 if self._stop_event.is_set():
                     break
-                self._poll_device_once()
+                input_poll_succeeded = self._poll_device_once()
+                if input_poll_succeeded:
+                    self._consecutive_failures = 0
+                else:
+                    self._consecutive_failures += 1
+                    if self._consecutive_failures >= self.max_consecutive_failures:
+                        message = (
+                            f"Device stopped responding after "
+                            f"{self._consecutive_failures} consecutive polls"
+                        )
+                        logger.error("%s: %s", self.device, message)
+                        self.connection_lost.emit(message)
+                        break
 
                 now = time.monotonic()
-                if now - self._last_holding_poll >= self.holding_refresh_rate_ms / 1000.0:
+                if input_poll_succeeded and now - self._last_holding_poll >= self.holding_refresh_rate_ms / 1000.0:
                     if not self._stop_event.is_set():
                         self._poll_holding_registers()
                     self._last_holding_poll = now
@@ -139,16 +160,18 @@ class DevicePollingThread(QThread):
         )
 
     def _process_pending_writes(self) -> None:
-        """Drain and execute all queued writes, then read holding regs back ONCE.
+        """Execute a bounded write batch, then read holding registers once.
 
         Runs inside the polling thread, so device access stays serialized. The
         holding-register sweep is deliberately outside the drain loop: doing it
-        per-write would hammer a shared bus for no benefit, and it only runs at
-        all if at least one write actually succeeded.
+        per-write would hammer a shared bus for no benefit. Bounding each batch
+        prevents a busy editor from starving telemetry and disconnect checks.
         """
         did_write = False
 
-        while not self._stop_event.is_set():
+        for _ in range(self.max_writes_per_cycle):
+            if self._stop_event.is_set():
+                break
             try:
                 command = self._write_queue.get_nowait()
             except queue.Empty:
@@ -166,8 +189,14 @@ class DevicePollingThread(QThread):
             else:
                 self.write_succeeded.emit(f"{command.register_name}: OK")
                 did_write = True
+                if command.register_name in {"rs485_mb_addr", "rs485_baud"}:
+                    self._stop_event.set()
+                    self.transport_changed.emit(command.register_name)
             finally:
                 self._write_queue.task_done()
+
+            if self._stop_event.is_set():
+                break
 
         if did_write and not self._stop_event.is_set():
             self._poll_holding_registers()
@@ -189,14 +218,20 @@ class DevicePollingThread(QThread):
             return
         self.holding_registers_updated.emit(holding_values)
 
-    def _poll_device_once(self) -> None:
+    def _poll_device_once(self) -> bool:
         """Poll input registers once and emit a timestamped snapshot."""
         try:
             t_elapsed = time.perf_counter() - self._t0
-            input_values = self.device.get_all_input_registers(raw=True)
+            snapshot_reader = getattr(self.device, "read_snapshot", None)
+            if callable(snapshot_reader):
+                self._input_values_cache.update(snapshot_reader(raw=True))
+                input_values = dict(self._input_values_cache)
+            else:
+                input_values = self.device.get_all_input_registers(raw=True)
         except Exception as exc:
-            logger.exception("Polling failed for device %s", self.device)
+            logger.warning("Polling failed for device %s: %s", self.device, exc)
             self.polling_failed.emit(str(exc))
-            return
+            return False
 
         self.input_registers_updated.emit(t_elapsed, input_values)
+        return True

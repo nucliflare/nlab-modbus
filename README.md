@@ -25,7 +25,7 @@ For example, `hardware_version = 0x0101` → type `0x01` (SIPM), board revision 
 
 ## Installation
 
-Requires **Python ≥ 3.11** and [uv](https://docs.astral.sh/uv/).
+Requires **Python ≥ 3.12** and [uv](https://docs.astral.sh/uv/).
 
 ### Install uv
 
@@ -81,7 +81,7 @@ uv sync --extra gui --extra dev
 uv run nlab-modbus-gui
 ```
 
-The application window opens with an auto-scan of all available serial ports and mDNS-announced remote boards.
+The application opens with the same EWT launch splash used by `nlab-community`. The splash closes as soon as the connection window appears; the initial serial and mDNS scans then continue in the background.
 
 ### Startup options
 
@@ -113,7 +113,7 @@ Serial framing is fixed at **8N1** (8 data bits, no parity, 1 stop bit) — the 
 
 > **Dual USB connections**: each board exposes two separate COM ports when connected via USB. The **MicroUSB** port is a USB-CDC virtual serial port — the baud rate configured on the PC side is irrelevant, the firmware always responds at its internal USB speed regardless of what you select. The **RS-485** port goes through a USB-to-RS-485 adapter and uses a real physical baud rate that must match the value stored in the device's `rs485_baud` holding register (default 115200; the board ships with 9600 if previously configured). Use `--baudrate 9600` (or the matching value) when scanning for devices connected over RS-485.
 
-Click **Scan…** next to the Connect button to re-probe all local serial ports using the current baud rate, without restarting the application. Use this after changing the baud rate combo or plugging in a new device.
+Click **Scan…** next to the Connect button to re-probe all local serial ports using the current baud rate, without restarting the application. Use this after changing the baud rate combo or plugging in a new device. Scans run in the background, and a port already owned by an open device tab is preserved rather than opened a second time.
 
 **Remote (TCP / ser2net)**
 
@@ -127,6 +127,10 @@ Click **Scan…** next to the remote Connect button to re-run mDNS discovery and
 Use **Connection → Scan for available devices** (or press **F5**) to run both a local and a remote scan at once.
 
 Multiple devices can be connected simultaneously. Each gets its own tab.
+
+If an open device fails three consecutive input polls (for example, because its USB cable is unplugged), polling stops, the transport is released, and the stale tab/discovery entry is removed. Reconnect the hardware and scan again to reopen it.
+
+Changing `rs485_mb_addr` or `rs485_baud` invalidates the active transport. After a successful write, the application closes that tab and asks you to scan again with the new address or baud rate.
 
 **Hardware and firmware version check**
 
@@ -178,6 +182,8 @@ nlab_modbus/
     ├── main_app.py        # Entry point: QApplication + ModbusMainWindow
     ├── controller/
     │   ├── main_controller.py  # Main window: connection panel, tab management
+    │   ├── io_worker.py        # Connection probing and initial register loading
+    │   ├── scan_worker.py      # Cancellable background discovery thread
     │   └── tab_controller.py   # Per-device tab: tables, plots, polling thread
     ├── model/
     │   ├── register_tables.py  # QAbstractTableModel for holding and input regs
@@ -187,9 +193,10 @@ nlab_modbus/
 
 ### Concurrency model
 
-- The GUI thread never touches Modbus directly.
-- Each device tab owns one `DevicePollingThread` (a `QThread`) that reads input registers on a configurable interval.
-- Write requests from the GUI are put on a `queue.Queue`; the polling thread drains the queue between read cycles, then does one holding-register readback to confirm.
+- Connection checks, initial register loading, polling, and all writes run outside the GUI thread.
+- Local and remote device discovery run in cancellable background threads.
+- Each device tab owns one `DevicePollingThread` (a `QThread`) that block-reads its live snapshot on a configurable interval.
+- Write requests from the GUI are put on a `queue.Queue`; the polling thread processes a bounded batch between read cycles, then does one holding-register readback to confirm.
 - All Modbus transactions are serialized with a **per-bus `RLock`** injected by `DeviceManager`. Devices on different buses run concurrently; devices sharing a bus take turns.
 - Qt `Signal`/`Slot` connections cross the thread boundary safely for all data updates and error notifications.
 

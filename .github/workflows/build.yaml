@@ -4,6 +4,9 @@ on:
     tags: ["v*"]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
@@ -14,18 +17,18 @@ jobs:
             runs-on: windows-latest
             python-exe: python
             venv-python: .venv/Scripts/python.exe
-            artifact: build/nlab-modbus-gui.exe
+            package: build/nlab-modbus-gui.exe
           - name: ubuntu
             runs-on: ubuntu-latest
             python-exe: python3
             venv-python: .venv/bin/python
-            artifact: build/nlab-modbus-gui
+            package: dist/nlab-modbus-gui-ubuntu.tar.gz
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -41,24 +44,34 @@ jobs:
             libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
             libxcb-xinerama0 patchelf
 
-      - name: Create venv
-        run: ${{ matrix.python-exe }} -m venv .venv
+      - name: Install uv
+        run: ${{ matrix.python-exe }} -m pip install --upgrade uv
 
-      - name: Install
-        run: |
-          ${{ matrix.venv-python }} -m pip install --upgrade pip uv
-          ${{ matrix.venv-python }} -m uv pip install -e ".[gui,build]"
+      - name: Install locked dependencies
+        run: ${{ matrix.python-exe }} -m uv sync --locked --extra gui --extra build
 
       - name: Generate UI modules
         run: ${{ matrix.venv-python }} scripts/gui_compiler.py
 
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ${{ matrix.venv-python }} -m unittest discover -s tests -v
+
       - name: Build
         run: ${{ matrix.venv-python }} scripts/build_pyinstaller.py
 
-      - uses: actions/upload-artifact@v4
+      - name: Package build (Linux)
+        if: matrix.name == 'ubuntu'
+        run: |
+          mkdir -p dist
+          tar -czf ${{ matrix.package }} -C build nlab-modbus-gui
+
+      - uses: actions/upload-artifact@v7
         with:
           name: nlab-modbus-gui-${{ matrix.name }}
-          path: ${{ matrix.artifact }}
+          path: ${{ matrix.package }}
+          if-no-files-found: error
 
   release:
     needs: build
@@ -68,12 +81,19 @@ jobs:
       contents: write
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
 
+      - name: Package Windows release archive
+        run: |
+          cd dist/nlab-modbus-gui-windows
+          python3 -m zipfile -c nlab-modbus-gui-windows.zip nlab-modbus-gui.exe
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          files: dist/**/*
+          files: |
+            dist/**/*.zip
+            dist/**/*.tar.gz
           generate_release_notes: true

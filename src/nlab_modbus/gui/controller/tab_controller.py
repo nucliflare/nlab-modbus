@@ -2,16 +2,20 @@ from __future__ import annotations
 
 import logging
 import random
+from typing import TYPE_CHECKING
 
 import pyqtgraph as pg
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QHeaderView, QInputDialog, QWidget
+from PySide6.QtWidgets import QHeaderView, QInputDialog, QMessageBox, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
 from nlab_modbus.gui.model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, ProtectedRowDelegate, RegisterRow
 from nlab_modbus.gui.model.ring_buffer import NumpyRingBuffer
 from nlab_modbus.services.polling_worker import DevicePollingThread
+
+if TYPE_CHECKING:
+    from nlab_modbus.gui.controller.main_controller import ModbusMainWindow
 
 
 logger = logging.getLogger(__name__)
@@ -36,31 +40,40 @@ class DeviceTab(QWidget):
         self,
         device: BaseModbusDevice,
         parent: ModbusMainWindow,
+        *,
+        input_values: dict[str, int],
+        holding_values: dict[str, int],
     ) -> None:
         super().__init__(parent)
 
         self.device = device
+        if device.device_type is None:
+            raise ValueError("Cannot open a tab for a device without a device type")
         self.main_widget = parent
+        self._closing = False
+        self._pending_service_password: int | None = None
         # self.ui = self._load_ui(self.TAB_UI)
         self.ui = Ui_DeviceTab()
         self.ui.setupUi(self)
         self.ui.type_edit.setText(device.device_type.name)
         self.input_register_buffer = {}
         self.time_buffer = NumpyRingBuffer(1000)
-        self.plot_items = {}
+        self.plot_items: dict[str, pg.PlotDataItem] = {}
         # self.main_plot = None
 
+        self._initial_input_values = dict(input_values)
+
         input_registers = []
-        for i, (register, value) in enumerate(self.device.get_all_input_registers(raw=True).items()):
+        for register, value in input_values.items():
             self.input_register_buffer[register] = NumpyRingBuffer(1000)
             spec = self.device.REGISTER_MAP[register]
-            input_registers.append(RegisterRow(i, register, value, description=spec.description))
+            input_registers.append(RegisterRow(spec.address, register, value, description=spec.description))
         holding_registers = []
-        for i, (name, value) in enumerate(self.device.get_all_holding_registers(raw=True).items()):
+        for name, value in holding_values.items():
             spec = self.device.REGISTER_MAP[name]
             holding_registers.append(
                 RegisterRow(
-                    i, name, value,
+                    spec.address, name, value,
                     password_protected=spec.password_protected,
                     min_val=spec.min,
                     max_val=spec.max,
@@ -188,10 +201,14 @@ class DeviceTab(QWidget):
             device=self.device,
             refresh_rate_ms=self.ui.refresh_spinner.value(),
             holding_refresh_rate_ms=self.ui.holding_refresh_spinner.value(),
+            initial_input_values=self._initial_input_values,
         )
         self.polling_thread.input_registers_updated.connect(self.update_input_registers)
         self.polling_thread.holding_registers_updated.connect(self.update_holding_registers)
         self.polling_thread.polling_failed.connect(self.on_device_polling_failed)
+        self.polling_thread.connection_lost.connect(self.on_device_connection_lost)
+        self.polling_thread.transport_changed.connect(self.on_transport_configuration_changed)
+        self.polling_thread.write_succeeded.connect(self.on_device_write_succeeded)
         self.polling_thread.write_failed.connect(self.on_device_write_failed)
         self.ui.refresh_spinner.valueChanged.connect(self.polling_thread.update_refresh_rate)
         self.ui.holding_refresh_spinner.valueChanged.connect(self.polling_thread.update_holding_refresh_rate)
@@ -205,8 +222,8 @@ class DeviceTab(QWidget):
         """Slot: receive a polled snapshot, push values into buffers and the table model."""
         self.time_buffer.append(elapsed_s)
         for register_name, value in data.items():
-            row_index = self.device.get_register_address(register_name)
-            self.input_model.update_value(row_index, value)
+            register_id = self.device.get_register_address(register_name)
+            self.input_model.update_value_by_register_id(register_id, value)
             self.input_register_buffer[register_name].append(value)
 
         self.update_plots()
@@ -220,10 +237,65 @@ class DeviceTab(QWidget):
     def on_device_polling_failed(self, error: str):
         logger.warning("%s poll failed: %s", self.device.connection_info(), error)
 
+    def on_device_connection_lost(self, error: str) -> None:
+        """Detach a device after repeated failures, such as a USB unplug."""
+        if self._closing:
+            return
+        connection = self.device.connection_info()
+        logger.error("Connection lost for %s: %s", connection, error)
+        main_widget = self.main_widget
+        device = self.device
+        self.close_tab()
+        main_widget.forget_available_device(device)
+        QMessageBox.warning(
+            main_widget,
+            "Device Disconnected",
+            f"The device '{connection}' stopped responding and was disconnected.\n\n"
+            "Reconnect the hardware, then scan again.",
+        )
+
     def on_device_write_failed(self, error: str):
         logger.error("%s write failed: %s", self.device.connection_info(), error)
+        if error.startswith("pass_static:") and self._pending_service_password is not None:
+            self._pending_service_password = None
+            self.set_service_mode(False)
+            self.main_widget.update_service_mode_action()
+            QMessageBox.warning(
+                self,
+                "Service Password Rejected",
+                "The service password was not accepted by the device.",
+            )
+            return
         if "exception_code=4" in error:
             self._prompt_service_password()
+
+    def on_device_write_succeeded(self, message: str) -> None:
+        if not message.startswith("pass_static:") or self._pending_service_password is None:
+            return
+        password = self._pending_service_password
+        self._pending_service_password = None
+        self.holding_model.update_value(
+            self.device.get_register_address("pass_static"),
+            password,
+        )
+        self.set_service_mode(True)
+        self.main_widget.update_service_mode_action()
+
+    def on_transport_configuration_changed(self, register_name: str) -> None:
+        """Reconnect after an address or baud-rate register is changed."""
+        if self._closing:
+            return
+        connection = self.device.connection_info()
+        main_widget = self.main_widget
+        device = self.device
+        self.close_tab()
+        main_widget.forget_available_device(device)
+        QMessageBox.information(
+            main_widget,
+            "Connection Settings Changed",
+            f"'{register_name}' was updated on {connection}.\n\n"
+            "The old connection has been closed. Scan again using the new settings.",
+        )
 
     @property
     def service_mode(self) -> bool:
@@ -232,22 +304,30 @@ class DeviceTab(QWidget):
     def set_service_mode(self, enabled: bool) -> None:
         self.holding_model.set_service_mode(enabled)
 
-    def _prompt_service_password(self) -> None:
+    def request_service_mode(self, prompt: str = "Enter the service password:") -> None:
+        """Queue password verification on the polling worker."""
+        self.main_widget.action_service_mode.setChecked(False)
         password, ok = QInputDialog.getInt(
-            self, "Service Password",
-            "Write rejected — enter the service password:",
-            0, -32767, 32767,
+            self,
+            "Service Password",
+            prompt,
+            0,
+            -32767,
+            32767,
         )
-        if ok:
-            try:
-                self.device.write("pass_static", password)
-                self.holding_model.update_value(
-                    self.device.get_register_address("pass_static"), password
-                )
-                self.set_service_mode(True)
-                self.main_widget.update_service_mode_action()
-            except Exception as exc:
-                logger.error("Password write failed: %s", exc)
+        if not ok:
+            return
+        self._pending_service_password = password
+        self.polling_thread.enqueue_write_command(
+            self.device.get_register_address("pass_static"),
+            "pass_static",
+            password,
+        )
+
+    def _prompt_service_password(self) -> None:
+        self.request_service_mode(
+            "Write rejected — enter the service password:",
+        )
 
     @Slot(int, str, int)
     def holding_write_requested(self, register_id: int, register_name: str, new_value: int) -> None:
@@ -307,10 +387,12 @@ class DeviceTab(QWidget):
                 self.plot_items[register].setData(self.time_buffer.array(), self.input_register_buffer[register].array())
 
     def close(self):
-        """Stop the polling thread gracefully (waits up to 2 s for it to exit)."""
-        if self.polling_thread:
+        """Stop the polling thread before its Modbus client is released."""
+        self._closing = True
+        if self.polling_thread and self.polling_thread.isRunning():
             self.polling_thread.stop()
-            self.polling_thread.wait(500)
+            if not self.polling_thread.wait(2000):
+                logger.error("Polling thread did not stop in time for %s", self.device.connection_info())
 
     def close_tab(self):
         """Remove this tab from the QTabWidget and schedule the widget for deletion."""

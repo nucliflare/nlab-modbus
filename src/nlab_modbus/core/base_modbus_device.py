@@ -4,6 +4,7 @@ from typing import Any
 
 from pymodbus.client import ModbusSerialClient, ModbusTcpClient
 
+from nlab_modbus.core.enums import DeviceType
 from nlab_modbus.core.register_specs import RegisterSpec, RegisterType
 
 
@@ -29,7 +30,7 @@ class BaseModbusDevice:
     def __init__(self, client: ModbusSerialClient | ModbusTcpClient, device_id: int):
         self.client = client
         self.device_id = device_id
-        self.device_type = None
+        self.device_type: DeviceType | None = None
         # Per-bus lock. Defaults to a private RLock so a standalone device
         # (constructed without a manager) is still internally consistent.
         # DeviceManager overwrites this with the lock shared by every device
@@ -113,8 +114,8 @@ class BaseModbusDevice:
 
         Used by device subclasses to snapshot many registers at once, which is
         significantly faster than individual reads on a shared RS-485 bus.
-        Does not check isError() — callers rely on the registers attribute being
-        present, so a timeout will surface as an AttributeError downstream.
+        Raises RuntimeError on a Modbus error response, consistent with
+        :meth:`read_raw`.
         """
         with self.bus_lock:
             result_raw = self.client.read_input_registers(
@@ -122,9 +123,11 @@ class BaseModbusDevice:
                 count=count,
                 device_id=self.device_id,
             )
-        # Preserve original behaviour (no isError check here), but you should
-        # consider adding one — a timeout returns an ExceptionResponse whose
-        # .registers access will raise an AttributeError downstream.
+        if result_raw.isError():
+            raise RuntimeError(
+                f"Failed to read input register block address={address} count={count}: "
+                f"{result_raw}"
+            )
         return result_raw.registers
 
     def write_raw(self, name: str, registers: list[int]) -> None:
@@ -203,18 +206,34 @@ class BaseModbusDevice:
             raw_value = int(value) if raw_mode else int(round(value / spec.scale))
             if not 0 <= raw_value <= 0xFFFF:
                 raise ValueError(f"Encoded uint16 value out of range: {raw_value}")
+            if not spec.min <= raw_value <= spec.max:
+                raise ValueError(
+                    f"Encoded value {raw_value} is outside the register limits "
+                    f"{spec.min}..{spec.max}"
+                )
             return [raw_value]
 
         if spec.dtype == "int16":
             raw_value = int(value) if raw_mode else int(round(value / spec.scale))
             if not -0x8000 <= raw_value <= 0x7FFF:
                 raise ValueError(f"Encoded int16 value out of range: {raw_value}")
+            if not spec.min <= raw_value <= spec.max:
+                raise ValueError(
+                    f"Encoded value {raw_value} is outside the register limits "
+                    f"{spec.min}..{spec.max}"
+                )
             if raw_value < 0:
                 raw_value += 0x10000
             return [raw_value]
 
         if spec.dtype == "bool":
-            return [1 if value else 0]
+            raw_value = 1 if value else 0
+            if not spec.min <= raw_value <= spec.max:
+                raise ValueError(
+                    f"Encoded value {raw_value} is outside the register limits "
+                    f"{spec.min}..{spec.max}"
+                )
+            return [raw_value]
 
         raise NotImplementedError(f"Unsupported dtype for encoding: {spec.dtype}")
 
