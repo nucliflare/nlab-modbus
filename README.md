@@ -204,6 +204,21 @@ nlab_modbus/
 
 `RegisterSpec` stores each register's address, Modbus function type (`HOLDING` / `INPUT`), wire dtype (`int16`), min/max bounds, scale factor, engineering unit, and a human-readable description. `BaseModbusDevice.encode()` / `decode()` apply two's-complement sign extension and the scale factor in both directions. Pass `raw=True` to skip scaling and work directly with raw register counts. Contiguous input register ranges are read in a single FC04 block transaction (`read_snapshot()`) to minimise bus traffic.
 
+Engineering units and scale factors follow the supplied `modbus_reg.c` register
+metadata and comments (SiPM holding/input versions 2/1; Geiger and HV 1/1).
+For example, a SiPM setpoint count of `4567` means `45.67 V`, PMT temperature
+`2500` means `25 degC`, and SiPM current `120` means `120 uA`. Temperatures use
+`degC`, the SiPM compensation coefficient uses `mV/degC`, voltage corrections
+use `%`, and RS-485 baud rate uses `bps`. Counters, statuses, coefficients and
+reserved registers have no physical unit.
+
+**API unit correction:** `sipm_current_ua` now returns microamps, matching its
+name and the firmware, rather than amperes. `pmt_temp` applies its missing
+`0.01 degC/count` factor. Bulk holding-register reads preserve fractional
+engineering values. The raw wire values and `raw=True` results are unchanged.
+These conversions are covered by simulated codec/snapshot tests; no live
+hardware validation is claimed.
+
 ---
 
 ## Using the library without the GUI

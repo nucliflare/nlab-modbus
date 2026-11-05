@@ -272,12 +272,12 @@ class BaseModbusDevice:
     # ---- composite reads (issue many transactions) ---------------------
 
     def get_all_holding_registers(self, *, raw: bool = False) -> dict:
-        """All holding register values, coherent w.r.t. other bus traffic."""
+        """Read holding values without truncating scaled engineering fractions."""
         result = {}
         with self.bus_transaction():
             for reg_name, spec in self.REGISTER_MAP.items():
                 if spec.reg_type == RegisterType.HOLDING:
-                    result[reg_name] = int(self.read(reg_name, raw=raw))
+                    result[reg_name] = self.read(reg_name, raw=raw)
         return result
 
     def get_all_input_registers(self, *, raw: bool = False) -> dict:

@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-11-05
+
+### Fixed
+
+- Align SiPM, Geiger and PMT-HV engineering units and scale factors with the
+  supplied `modbus_reg.c` metadata/comments: SiPM voltage in V, current in uA,
+  temperatures in degC, compensation in mV/degC, corrections in %, and baud
+  rate in bps. Reserved registers remain unitless.
+- Apply the missing 0.01 factor to PMT temperature and preserve fractional
+  engineering values in bulk holding-register reads. Raw register counts and
+  raw-mode I/O are unchanged. Covered by simulated codec/snapshot tests; no
+  live hardware validation.
+
 ## [0.2.6] - 2026-10-07
 
 ### Added
@@ -37,5 +50,6 @@ All notable changes to this project are documented here. The project follows
   connection window or prints a traceback for every unanswered Modbus address.
 - Unscoped link-local IPv6 mDNS addresses are excluded from remote scan targets.
 
-[Unreleased]: https://github.com/nucliflare/nlab-modbus/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/nucliflare/nlab-modbus/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/nucliflare/nlab-modbus/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/nucliflare/nlab-modbus/compare/v0.2.5...v0.2.6

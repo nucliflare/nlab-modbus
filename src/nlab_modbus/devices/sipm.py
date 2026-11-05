@@ -7,7 +7,7 @@ from nlab_modbus.maps.sipm_map import SIPM_REGISTER_MAP
 class SiPMDevice(BaseModbusDevice):
     """Silicon Photomultiplier (SiPM) bias voltage board.
 
-    Controls the high-voltage output (1.5 – 7.8 V, fine-tuned in 10 mV steps)
+    Controls the high-voltage output (15.0 – 78.0 V, fine-tuned in 10 mV steps)
     used to bias a SiPM detector.  Features include temperature compensation
     (adjusts Vout automatically to maintain gain over temperature), an
     on-board calibration LED driver for linearity measurements, and a PID
@@ -186,7 +186,7 @@ class SiPMDevice(BaseModbusDevice):
         return self.read("vout_overload")
 
     def get_sipm_voltage_10mv(self) -> float:
-        """Get SIPM voltage in 10mV units"""
+        """Get SiPM output voltage in volts (0.01 V per raw count)."""
         return self.read("sipm_voltage_10mv")
 
     def get_sipm_current_ua(self) -> float:

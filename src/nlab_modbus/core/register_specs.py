@@ -32,7 +32,7 @@ class RegisterSpec:
                    always 1 for these devices).
         scale:     Multiply raw counts by this to get engineering units.
                    Example: scale=0.01 means a raw value of 7500 → 75.00 V.
-        unit:      Display unit string (e.g. "mV", "*C"). Informational only.
+        unit:      Display unit string (e.g. "mV", "degC"). Informational only.
     """
 
     reg_type: RegisterType

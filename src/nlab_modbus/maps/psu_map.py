@@ -1,10 +1,12 @@
 from nlab_modbus.core.register_specs import RegisterSpec, RegisterType
 
+# Engineering units after scaling, from modbus_reg.c BOARD_HV metadata
+# (holding-register version 1, input-register version 1).
 PSU_REGISTER_MAP = {
     # Holding registers
     "rs485_mb_addr": RegisterSpec(reg_type=RegisterType.HOLDING, address=0, dtype="int16", min=1, max=254,
         description="Modbus address on RS485"),
-    "rs485_baud": RegisterSpec(reg_type=RegisterType.HOLDING, address=1, dtype="int16", min=96, max=10000, scale=100,
+    "rs485_baud": RegisterSpec(reg_type=RegisterType.HOLDING, address=1, dtype="int16", min=96, max=10000, scale=100, unit="bps",
         description="RS485 baud rate [100 bps units] (115200 = 1152)"),
     "pwm_enable": RegisterSpec(reg_type=RegisterType.HOLDING, address=2, dtype="int16", min=0, max=1,
         description="HV supply enable [0/1]"),
@@ -38,9 +40,9 @@ PSU_REGISTER_MAP = {
         description="Modbus received frames with CRC error counter"),
     "rs485_rx_bad_req_cnt": RegisterSpec(reg_type=RegisterType.INPUT, address=4, dtype="int16", min=-32768, max=32767,
         description="Modbus bad request counter (e.g. unsupported command)"),
-    "cpu_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=5, dtype="int16", min=-32768, max=32767, unit="*C",
+    "cpu_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=5, dtype="int16", min=-32768, max=32767, unit="degC",
         description="CPU temperature [°C]"),
-    "board_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=6, dtype="int16", min=-32768, max=32767, unit="*C", scale=0.01,
+    "board_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=6, dtype="int16", min=-32768, max=32767, unit="degC", scale=0.01,
         description="PCB sensor temperature [0.01 °C]"),
     "eeprom_error": RegisterSpec(reg_type=RegisterType.INPUT, address=7, dtype="int16", min=0, max=2,
         description="EEPROM error: 1=hardware error, 2=CRC error"),
@@ -58,6 +60,6 @@ PSU_REGISTER_MAP = {
         description="Hardware HV protection triggered (status clears after 1 s)"),
     "pid_saturation": RegisterSpec(reg_type=RegisterType.INPUT, address=14, dtype="int16", min=-32768, max=32767,
         description="PID controller integral accumulator saturation"),
-    "pmt_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=15, dtype="int16", min=-32768, max=32767, unit="*C",
+    "pmt_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=15, dtype="int16", min=-32768, max=32767, scale=0.01, unit="degC",
         description="Temperature on powered PMT module [0.01 °C]"),
 }

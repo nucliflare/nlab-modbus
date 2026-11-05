@@ -1,10 +1,12 @@
 from nlab_modbus.core.register_specs import RegisterSpec, RegisterType
 
+# Engineering units after scaling, from modbus_reg.c BOARD_GM metadata
+# (holding-register version 1, input-register version 1).
 GEIGER_REGISTER_MAP = {
     # Holding registers
     "rs485_mb_addr": RegisterSpec(reg_type=RegisterType.HOLDING, address=0, dtype="int16", min=1, max=254,
         description="Modbus address on RS485"),
-    "rs485_baud": RegisterSpec(reg_type=RegisterType.HOLDING, address=1, dtype="int16", min=96, max=10000, scale=100,
+    "rs485_baud": RegisterSpec(reg_type=RegisterType.HOLDING, address=1, dtype="int16", min=96, max=10000, scale=100, unit="bps",
         description="RS485 baud rate [100 bps units] (115200 = 1152)"),
     "pwm_enable": RegisterSpec(reg_type=RegisterType.HOLDING, address=2, dtype="int16", min=0, max=1,
         description="HV supply enable for GM tube [0/1]"),
@@ -12,7 +14,7 @@ GEIGER_REGISTER_MAP = {
         description="HV converter output voltage setpoint [50–650 V]"),
     "pulse_trig_level_mv": RegisterSpec(reg_type=RegisterType.HOLDING, address=4, dtype="int16", min=0, max=2500, unit="mV", password_protected=True,
         description="GM tube pulse comparator threshold voltage [0–2500 mV]"),
-    "dummy_1": RegisterSpec(reg_type=RegisterType.HOLDING, address=5, dtype="int16", min=0, max=0, unit="reserved",
+    "dummy_1": RegisterSpec(reg_type=RegisterType.HOLDING, address=5, dtype="int16", min=0, max=0,
         description="Reserved"),
     "pwm_freq_khz": RegisterSpec(reg_type=RegisterType.HOLDING, address=6, dtype="int16", min=10, max=500, unit="kHz", password_protected=True,
         description="HV converter switching frequency [10–500 kHz]"),
@@ -21,7 +23,7 @@ GEIGER_REGISTER_MAP = {
     "pwm_outvolt_comp": RegisterSpec(
         reg_type=RegisterType.HOLDING, address=8, dtype="int16", min=-1000, max=1000, scale=0.01, unit="%", password_protected=True,
         description="Output voltage correction (gain) [0.01 %]"),
-    "dummy_2": RegisterSpec(reg_type=RegisterType.HOLDING, address=9, dtype="int16", min=0, max=0, unit="reserved",
+    "dummy_2": RegisterSpec(reg_type=RegisterType.HOLDING, address=9, dtype="int16", min=0, max=0,
         description="Reserved"),
     "scale_coeff_p1_a2": RegisterSpec(reg_type=RegisterType.HOLDING, address=10, dtype="int16", min=-32000, max=32000, password_protected=True,
         description="Dose calibration polynomial 1 — a2 coefficient mantissa"),
@@ -80,9 +82,9 @@ GEIGER_REGISTER_MAP = {
         description="Modbus received frames with CRC error counter"),
     "rs485_rx_bad_req_cnt": RegisterSpec(reg_type=RegisterType.INPUT, address=8, dtype="int16", min=-32768, max=32767,
         description="Modbus bad request counter (e.g. unsupported command)"),
-    "cpu_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=9, dtype="int16", min=-32768, max=32767, unit="*C",
+    "cpu_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=9, dtype="int16", min=-32768, max=32767, unit="degC",
         description="CPU temperature [°C]"),
-    "board_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=10, dtype="int16", min=-32768, max=32767, unit="*C", scale=0.01,
+    "board_temp": RegisterSpec(reg_type=RegisterType.INPUT, address=10, dtype="int16", min=-32768, max=32767, unit="degC", scale=0.01,
         description="PCB sensor temperature [0.01 °C]"),
     "eeprom_error": RegisterSpec(reg_type=RegisterType.INPUT, address=11, dtype="int16", min=0, max=2,
         description="EEPROM error: 1=hardware error, 2=CRC error"),
