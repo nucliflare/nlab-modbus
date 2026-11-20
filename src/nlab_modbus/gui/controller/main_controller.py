@@ -16,7 +16,7 @@ from pymodbus.client import ModbusSerialClient, ModbusTcpClient
 from nlab_modbus import __version__
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
-from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_boards, scan_remote_modbus_devices
+from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_boards, scan_remote_endpoints
 from nlab_modbus.gui.controller.io_worker import DeviceIoThread
 from nlab_modbus.gui.controller.scan_worker import DeviceScanThread
 from nlab_modbus.gui.controller.tab_controller import DeviceTab
@@ -500,28 +500,15 @@ class ModbusMainWindow(QMainWindow):
 
         def scan(stop_requested):
             hosts = scan_remote_boards(should_stop=stop_requested)
-            devices = list(preserved)
-            for host in hosts:
-                for port in (5001, 5002):
-                    if stop_requested():
-                        return {
-                            "hosts": hosts,
-                            "devices": devices,
-                            "skipped_endpoints": in_use_endpoints,
-                        }
-                    if (host, port) in in_use_endpoints:
-                        continue
-                    devices.extend(
-                        scan_remote_modbus_devices(
-                            host,
-                            port,
-                            candidate_ids=self._scan_id_range,
-                            should_stop=stop_requested,
-                        )
-                    )
+            discovered = scan_remote_endpoints(
+                hosts,
+                candidate_ids=self._scan_id_range,
+                skip=in_use_endpoints,
+                should_stop=stop_requested,
+            )
             return {
                 "hosts": hosts,
-                "devices": devices,
+                "devices": [*preserved, *discovered],
                 "skipped_endpoints": in_use_endpoints,
             }
 

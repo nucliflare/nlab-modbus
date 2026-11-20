@@ -149,10 +149,13 @@ class DeviceManager:
 
     # ---- discovery ---------------------------------------------------------
 
-    def scan_local_ports(self, device_ids: Iterable[int] = range(1, 17), baudrate: int = 9600, **_ignored):
-        """Discover devices on all serial ports at ``baudrate`` and attach them."""
+    def scan_local_ports(self, device_ids: Iterable[int] = range(1, 17), baudrate: int | None = None, **_ignored):
+        """Discover devices on all serial ports and attach them.
+
+        Without ``baudrate`` each port is tried at 9600 and then 115200 baud.
+        """
         for found in scan_local_modbus_devices(device_ids=device_ids, baudrate=baudrate):
-            self.connect_local(found["port"], found["device_id"], found["type"], baudrate)
+            self.connect_local(found["port"], found["device_id"], found["type"], found["baudrate"])
 
     def scan_remote(self, host: str, ports: int | list, candidate_ids: Iterable[int] = range(1, 17)):
         """Discover devices on gateway port(s) of ``host`` and attach them."""

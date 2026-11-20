@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The project follows
 
 ### Added
 
+- Discovery tries each serial port at 9600 and then 115200 baud and reports
+  the rate that answered. Before, ports were scanned at one baud rate
+  (default 115200), so boards on RS-485 adapters at the firmware default of
+  9600 were never found.
+- Serial ports and gateway endpoints are scanned in parallel
+  (`scan_remote_endpoints`). mDNS results list each digitizer once (IPv4
+  preferred), so a board is never probed through two addresses that would
+  evict each other's ser2net session.
+
 - Register maps cover the full firmware tables: `reset_device_command`,
   `pwm_max_width_ns`, `modbus_reg_version`, `serial_number_hi/lo` and
   `pwm_pulse_width_ns`. Specs record firmware defaults and whether a register

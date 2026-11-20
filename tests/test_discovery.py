@@ -6,9 +6,12 @@ from unittest.mock import patch
 
 from nlab_modbus.core.enums import DeviceType
 from nlab_modbus.discovery.scan import (
+    _preferred_address,
     _usable_discovery_address,
     scan_local_modbus_devices,
+    scan_remote_endpoints,
     scan_remote_modbus_devices,
+    scan_serial_port,
 )
 
 
@@ -46,7 +49,7 @@ class _FakeClient:
 class DiscoveryTests(unittest.TestCase):
     @patch("nlab_modbus.discovery.scan.time.sleep")
     @patch("nlab_modbus.discovery.scan.list_ports.comports")
-    @patch("nlab_modbus.discovery.scan.ModbusSerialClient")
+    @patch("nlab_modbus.discovery.scan.serial_client")
     def test_local_scan_skips_in_use_port_and_closes_client(
         self,
         client_factory,
@@ -78,7 +81,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(found[0]["type"], DeviceType.SIPM)
         self.assertEqual(found[0]["hardware_id"], 0x0101)
 
-    @patch("nlab_modbus.discovery.scan.ModbusTcpClient")
+    @patch("nlab_modbus.discovery.scan.tcp_client")
     def test_remote_scan_uses_requested_ids_and_returns_hardware_id(self, client_factory) -> None:
         client = _FakeClient(
             {
@@ -111,7 +114,7 @@ class DiscoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "1..254"):
             scan_remote_modbus_devices("192.0.2.10", 5001, candidate_ids=[255])
 
-    @patch("nlab_modbus.discovery.scan.ModbusTcpClient")
+    @patch("nlab_modbus.discovery.scan.tcp_client")
     def test_cancelled_remote_scan_does_not_connect(self, client_factory) -> None:
         found = scan_remote_modbus_devices(
             "192.0.2.10",
@@ -124,7 +127,7 @@ class DiscoveryTests(unittest.TestCase):
         client_factory.return_value.connect.assert_not_called()
         client_factory.return_value.close.assert_called_once()
 
-    @patch("nlab_modbus.discovery.scan.ModbusTcpClient")
+    @patch("nlab_modbus.discovery.scan.tcp_client")
     def test_expected_probe_timeout_is_logged_without_traceback(self, client_factory) -> None:
         client_factory.return_value = _FakeClient({1: OSError("no response")})
 
@@ -139,6 +142,31 @@ class DiscoveryTests(unittest.TestCase):
         output = "\n".join(captured.output)
         self.assertIn("No response from 192.0.2.10:5001 id=1: no response", output)
         self.assertNotIn("Traceback", output)
+
+    @patch("nlab_modbus.discovery.scan.time.sleep")
+    @patch("nlab_modbus.discovery.scan.serial_client")
+    def test_serial_scan_falls_back_to_the_next_baud_rate(self, client_factory, _sleep) -> None:
+        silent = _FakeClient({1: OSError("timeout")})
+        answering = _FakeClient({1: _Response([0x0301])})
+        client_factory.side_effect = [silent, answering]
+
+        found = scan_serial_port("COM3", [1], baudrates=(115200, 9600))
+
+        self.assertEqual([call.args[1] for call in client_factory.call_args_list], [115200, 9600])
+        self.assertEqual(found[0]["baudrate"], 9600)
+        self.assertEqual(found[0]["type"], DeviceType.PSU)
+        self.assertTrue(silent.closed and answering.closed)
+
+    @patch("nlab_modbus.discovery.scan.scan_remote_modbus_devices", return_value=[])
+    def test_endpoint_scan_skips_open_gateway_connections(self, scan_endpoint) -> None:
+        scan_remote_endpoints(["192.0.2.10"], skip={("192.0.2.10", 5001)})
+
+        scanned = [call.args[:2] for call in scan_endpoint.call_args_list]
+        self.assertEqual(scanned, [("192.0.2.10", 5002)])
+
+    def test_one_address_is_chosen_per_board(self) -> None:
+        self.assertEqual(_preferred_address(["fe80::1", "2001:db8::10", "192.168.10.128"]), "192.168.10.128")
+        self.assertIsNone(_preferred_address(["fe80::1"]))
 
     def test_unscoped_link_local_ipv6_is_not_a_remote_scan_target(self) -> None:
         self.assertTrue(_usable_discovery_address("192.168.10.128"))
