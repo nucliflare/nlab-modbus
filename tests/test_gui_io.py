@@ -11,14 +11,22 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from nlab_modbus.core.enums import DeviceType  # noqa: E402
+from nlab_modbus.core.identity import DeviceIdentity  # noqa: E402
 from nlab_modbus.gui.controller.main_controller import ModbusMainWindow  # noqa: E402
 
 
 class _ProbeDevice:
     device_type = DeviceType.SIPM
+    REGISTER_VERSION = (2, 1)
+    link = None
+    device_id = 1
 
     def __init__(self) -> None:
         self.io_thread_ids: list[int] = []
+
+    def identify(self) -> DeviceIdentity:
+        self.io_thread_ids.append(threading.get_ident())
+        return DeviceIdentity.from_words(0x0101, 0x0002)
 
     def read(self, name: str) -> int:
         self.io_thread_ids.append(threading.get_ident())

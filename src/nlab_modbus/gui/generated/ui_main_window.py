@@ -17,8 +17,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QGroupBox,
     QHBoxLayout, QLabel, QPushButton, QSizePolicy,
-    QSpacerItem, QSpinBox, QTabWidget, QVBoxLayout,
-    QWidget)
+    QSpacerItem, QTabWidget, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -65,12 +64,15 @@ class Ui_MainWindow(object):
 
         self.gridLayout.addWidget(self.label_2, 1, 0, 1, 1)
 
-        self.baudrate_select = QSpinBox(self.groupBox)
+        self.baudrate_select = QComboBox(self.groupBox)
+        self.baudrate_select.addItem("")
+        self.baudrate_select.addItem("")
+        self.baudrate_select.addItem("")
+        self.baudrate_select.addItem("")
+        self.baudrate_select.addItem("")
+        self.baudrate_select.addItem("")
         self.baudrate_select.setObjectName(u"baudrate_select")
-        self.baudrate_select.setMinimum(9600)
-        self.baudrate_select.setMaximum(115200)
-        self.baudrate_select.setSingleStep(100)
-        self.baudrate_select.setValue(115200)
+        self.baudrate_select.setEditable(True)
 
         self.gridLayout.addWidget(self.baudrate_select, 1, 1, 1, 1)
 
@@ -204,8 +206,18 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"Form", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Local connection", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Port", None))
-        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Modus adress", None))
-        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Bandwith", None))
+        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Modbus address", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Baud rate", None))
+        self.baudrate_select.setItemText(0, QCoreApplication.translate("MainWindow", u"Auto", None))
+        self.baudrate_select.setItemText(1, QCoreApplication.translate("MainWindow", u"9600", None))
+        self.baudrate_select.setItemText(2, QCoreApplication.translate("MainWindow", u"19200", None))
+        self.baudrate_select.setItemText(3, QCoreApplication.translate("MainWindow", u"38400", None))
+        self.baudrate_select.setItemText(4, QCoreApplication.translate("MainWindow", u"57600", None))
+        self.baudrate_select.setItemText(5, QCoreApplication.translate("MainWindow", u"115200", None))
+
+#if QT_CONFIG(tooltip)
+        self.baudrate_select.setToolTip(QCoreApplication.translate("MainWindow", u"Auto: use the rate found by the scan (tries 9600, then 115200)", None))
+#endif // QT_CONFIG(tooltip)
         self.label_type_local.setText(QCoreApplication.translate("MainWindow", u"Type", None))
         self.local_type_select.setItemText(0, QCoreApplication.translate("MainWindow", u"SIPM", None))
         self.local_type_select.setItemText(1, QCoreApplication.translate("MainWindow", u"GEIGER", None))
@@ -216,7 +228,7 @@ class Ui_MainWindow(object):
         self.local_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", u"Remote connection", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Host", None))
-        self.label_8.setText(QCoreApplication.translate("MainWindow", u"Modbus adress", None))
+        self.label_8.setText(QCoreApplication.translate("MainWindow", u"Modbus address", None))
         self.label_7.setText(QCoreApplication.translate("MainWindow", u"Port", None))
         self.remote_port_select.setItemText(0, QCoreApplication.translate("MainWindow", u"5001", None))
         self.remote_port_select.setItemText(1, QCoreApplication.translate("MainWindow", u"5002", None))

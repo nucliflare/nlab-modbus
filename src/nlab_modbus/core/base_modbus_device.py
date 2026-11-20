@@ -244,6 +244,9 @@ class BaseModbusDevice:
 
     close = disconnect
 
+    def __str__(self) -> str:
+        return self.connection_info()
+
     def connection_info(self) -> str:
         """Human-readable endpoint, e.g. ``serial://COM3:1`` or ``192.168.10.128:5001:1``."""
         if isinstance(self.client, ModbusSerialClient):

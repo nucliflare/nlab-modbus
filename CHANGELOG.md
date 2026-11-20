@@ -25,6 +25,11 @@ All notable changes to this project are documented here. The project follows
 
 ### Changed
 
+- Device tabs are labelled with their link (`COM3 @ 9600 · id 1`) and show
+  the board identity (type, revision, firmware, and on newer firmware the
+  register version and serial number). A register-table version that differs
+  from the map is logged as a warning. Connection labels fixed ("Modbus
+  address", "Baud rate").
 - Transport: all clients are built in `nlab_modbus.core.transport` with
   timeouts derived from the baud rate (0.24 s at 9600, 0.16 s at 115200,
   0.26 s through the digitizer gateway) and no automatic retries. The
@@ -49,6 +54,17 @@ All notable changes to this project are documented here. The project follows
 
 ### Fixed
 
+- GUI baud rate defaults to **Auto**: the rate found by the scan is used, or
+  9600 then 115200 is tried on Connect; `--baudrate` pins one rate.
+- Writing `rs485_mb_addr`/`rs485_baud` asks for confirmation first, with a
+  warning when a gateway would lose the board. Afterwards the link is
+  re-checked: MicroUSB tabs stay open (that link is unaffected), RS-485 and
+  gateway tabs close and a rescan starts. Previously every such write closed
+  the tab, and over RS-485 the firmware's missing reply showed up as a failed
+  write followed by "device disconnected".
+- Service mode verifies the password with a no-op write to a protected
+  register. The firmware accepts any `pass_static` value, so previously every
+  password was "accepted" and a wrong one silently locked the board.
 - SiPM `vout_overload` (and the PSU frame counter) were never refreshed after
   connecting because live polling skipped their addresses.
 - Version words, Modbus frame counters and the Geiger pulse counters decode as

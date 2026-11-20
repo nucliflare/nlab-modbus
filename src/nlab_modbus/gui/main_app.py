@@ -38,9 +38,9 @@ def _find_icon() -> Path:
 def _parse_arguments(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(description="nlab Modbus Monitor GUI")
     parser.add_argument(
-        "--baudrate", type=int, default=115200,
+        "--baudrate", type=int, default=None,
         metavar="BAUD",
-        help="Serial baud rate used for the initial device scan (default: 115200)",
+        help="Fixed serial baud rate for scans and connections (default: auto, tries 9600 then 115200)",
     )
     parser.add_argument(
         "--start-id", type=int, default=1,

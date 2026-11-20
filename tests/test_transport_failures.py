@@ -5,7 +5,10 @@ import time
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.register_specs import RegisterSpec, RegisterType
+from nlab_modbus.devices.psu import PSUDevice
 from nlab_modbus.services.polling_worker import DevicePollingThread
+
+from fake_firmware import PASSWORD, FakeFirmwareClient
 
 
 class _ErrorResponse:
@@ -118,15 +121,46 @@ class TransportFailureTests(unittest.TestCase):
         self.assertEqual(len(device.writes), 2)
         self.assertEqual(worker._write_queue.qsize(), 3)
 
-        transport_worker = DevicePollingThread(device)
-        changed: list[str] = []
-        transport_worker.transport_changed.connect(changed.append)
-        transport_worker.enqueue_write_command(0, "rs485_mb_addr", 7)
+    def test_rs485_change_closes_a_link_that_stops_answering(self) -> None:
+        client = FakeFirmwareClient([0x0301, 3], [1, 96, 0])
+        device = PSUDevice(client, 1)
+        worker = DevicePollingThread(device)
+        changed: list[tuple[str, int]] = []
+        worker.transport_changed.connect(lambda name, value: changed.append((name, value)))
+        worker.enqueue_write_command(0, "rs485_mb_addr", 7)
+        client.offline = True  # board now answers elsewhere (RS-485 link)
 
-        transport_worker._process_pending_writes()
+        worker._process_pending_writes()
 
-        self.assertEqual(changed, ["rs485_mb_addr"])
-        self.assertTrue(transport_worker._stop_event.is_set())
+        self.assertEqual(changed, [("rs485_mb_addr", 7)])
+        self.assertTrue(worker._stop_event.is_set())
+
+    def test_rs485_change_keeps_a_link_that_still_answers(self) -> None:
+        client = FakeFirmwareClient([0x0301, 3], [1, 96, 0])
+        worker = DevicePollingThread(PSUDevice(client, 1))
+        changed: list = []
+        worker.transport_changed.connect(lambda *args: changed.append(args))
+        worker.enqueue_write_command(1, "rs485_baud", 192)
+
+        worker._process_pending_writes()  # MicroUSB: the board keeps answering
+
+        self.assertEqual(changed, [])
+        self.assertEqual(client.holdings[1], 192)
+        self.assertFalse(worker._stop_event.is_set())
+
+    def test_service_unlock_is_verified_on_the_device(self) -> None:
+        holdings = [1, 96, 0, 800, 40, 40, 0, 20, 200, 10, 10, 0]
+        client = FakeFirmwareClient([0x0301, 3], holdings, protected={4, 5, 6, 7, 8, 9, 10}, password_address=11)
+        worker = DevicePollingThread(PSUDevice(client, 1))
+        results: list[bool] = []
+        worker.service_unlock_finished.connect(results.append)
+
+        worker.enqueue_service_unlock(1234)
+        worker._process_pending_writes()
+        worker.enqueue_service_unlock(PASSWORD)
+        worker._process_pending_writes()
+
+        self.assertEqual(results, [False, True])
 
 
 if __name__ == "__main__":

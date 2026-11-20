@@ -16,6 +16,9 @@ from pymodbus.client import ModbusSerialClient, ModbusTcpClient
 from nlab_modbus import __version__
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
+from nlab_modbus.core.errors import DeviceUnavailable
+from nlab_modbus.core.identity import DeviceIdentity
+from nlab_modbus.core.transport import DEFAULT_BAUDRATES
 from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_boards, scan_remote_endpoints
 from nlab_modbus.gui.controller.io_worker import DeviceIoThread
 from nlab_modbus.gui.controller.scan_worker import DeviceScanThread
@@ -46,7 +49,7 @@ class ModbusMainWindow(QMainWindow):
     def __init__(
         self,
         log_handler: QtLogHandler | None = None,
-        initial_baudrate: int = 115200,
+        initial_baudrate: int | None = None,
         scan_id_range: range = range(1, 17),
         parent: QWidget | None = None,
     ) -> None:
@@ -72,6 +75,8 @@ class ModbusMainWindow(QMainWindow):
         self._initial_scan_pending = True
         self._closing = False
         self._scan_id_range = scan_id_range
+        self._port_baudrates: dict[str, int] = {}  # serial port -> baud rate found by the scan
+        self._identities: dict[BaseModbusDevice, DeviceIdentity] = {}
         self._apply_initial_baudrate(initial_baudrate)
         self._setup_window()
         self._setup_menu_bar()
@@ -80,9 +85,32 @@ class ModbusMainWindow(QMainWindow):
         self._restore_settings()
         QTimer.singleShot(0, self.scan_for_available_devices)
 
-    def _apply_initial_baudrate(self, baudrate: int) -> None:
-        """Set the initial baud rate on the spinbox before the first scan runs."""
-        self.ui.baudrate_select.setValue(baudrate)
+    def _apply_initial_baudrate(self, baudrate: int | None) -> None:
+        """Preselect a fixed baud rate, or Auto (scan 9600 then 115200)."""
+        self.ui.baudrate_select.setCurrentText(str(baudrate) if baudrate else "Auto")
+
+    def _selected_baudrate(self) -> tuple[bool, int | None]:
+        """(valid, baud rate); a baud rate of None means Auto."""
+        text = self.ui.baudrate_select.currentText().strip()
+        if not text or text.casefold() == "auto":
+            return True, None
+        try:
+            baudrate = int(text)
+        except ValueError:
+            baudrate = 0
+        if not 1200 <= baudrate <= 1_000_000:
+            QMessageBox.warning(self, "Invalid Baud Rate", "Enter a baud rate (e.g. 9600) or choose Auto.")
+            return False, None
+        return True, baudrate
+
+    def device_label(self, device: BaseModbusDevice) -> str:
+        """Short connection label, e.g. ``COM3 @ 9600 · id 1``."""
+        link = getattr(device, "link", None)
+        return f"{link} · id {device.device_id}" if link else device.connection_info()
+
+    def rescan(self, kind: str) -> None:
+        """Start a local or remote scan once pending tab teardown has run."""
+        QTimer.singleShot(0, self._scan_local_devices if kind == "local" else self._scan_remote_devices)
 
     def _setup_window(self) -> None:
         """
@@ -133,48 +161,52 @@ class ModbusMainWindow(QMainWindow):
         if existing in self._open_devices:
             self.add_device_tab(existing)
             return
-        selected_type = self.ui.remote_type_select.currentText()
-        self._begin_connection(
-            "remote",
-            selected_type,
-            lambda: self.manager.connect_remote(
-                host,
-                port,
-                device_id,
-                DeviceType[selected_type],
-            ),
-        )
+        selected_type = DeviceType[self.ui.remote_type_select.currentText()]
+
+        def connect():
+            device = self.manager.connect_remote(host, port, device_id, selected_type)
+            try:
+                return device, device.identify()
+            except Exception:
+                self.manager.disconnect(device)
+                raise
+
+        self._begin_connection("remote", selected_type, connect)
 
     def on_connect_local_clicked(self) -> None:
-        """Local Modbus connection handler."""
+        """Connect to the serial device selected in the local dropdowns."""
         port = self.ui.port_select.currentText().strip()
         if not port:
             QMessageBox.warning(self, "Invalid Connection", "Select or enter a serial port.")
             return
-        baudrate = self.ui.baudrate_select.value()
+        valid, baudrate = self._selected_baudrate()
         device_id = self._validated_integer(self.ui.local_id_select.currentText(), "Modbus address", 1, 254)
-        if device_id is None:
+        if not valid or device_id is None:
             return
         existing = self.manager.find_device(("serial", port), device_id)
         if existing in self._open_devices:
             self.add_device_tab(existing)
             return
-        selected_type = self.ui.local_type_select.currentText()
-        self._begin_connection(
-            "local",
-            selected_type,
-            lambda: self.manager.connect_local(
-                port,
-                device_id,
-                DeviceType[selected_type],
-                baudrate,
-                parity="N",
-                stopbits=1,
-            ),
-        )
+        selected_type = DeviceType[self.ui.local_type_select.currentText()]
+        known = self._port_baudrates.get(port)
+        candidates = (baudrate,) if baudrate else ((known,) if known else DEFAULT_BAUDRATES)
 
-    def _begin_connection(self, kind: str, selected_type: str, connect) -> None:
-        """Connect and probe identity without performing I/O on the GUI thread."""
+        def connect():
+            """Open the port at the first candidate baud rate the device answers on."""
+            for index, rate in enumerate(candidates):
+                device = self.manager.connect_local(port, device_id, selected_type, rate)
+                try:
+                    return device, device.identify()
+                except Exception:
+                    self.manager.disconnect(device)
+                    if index == len(candidates) - 1:
+                        raise
+            raise DeviceUnavailable(f"No answer from {port} id {device_id}")
+
+        self._begin_connection("local", selected_type, connect)
+
+    def _begin_connection(self, kind: str, selected_type: DeviceType, connect) -> None:
+        """Connect and identify the device on a worker thread."""
         if kind in self._scan_threads:
             logger.info("Cannot connect a %s device while its scan is running", kind)
             return
@@ -187,27 +219,11 @@ class ModbusMainWindow(QMainWindow):
         self.statusBar().showMessage(f"Connecting to {kind} device…")
 
         def probe(stop_requested):
-            device = None
-            try:
-                device = connect()
-                if stop_requested():
-                    self.manager.disconnect(device)
-                    return None
-                hardware_version = device.read("hardware_version")
-                firmware_version = device.read("firmware_version")
-                if stop_requested():
-                    self.manager.disconnect(device)
-                    return None
-                return {
-                    "device": device,
-                    "selected_type": selected_type,
-                    "hardware_version": hardware_version,
-                    "firmware_version": firmware_version,
-                }
-            except Exception:
-                if device is not None:
-                    self.manager.disconnect(device)
-                raise
+            device, identity = connect()
+            if stop_requested():
+                self.manager.disconnect(device)
+                return None
+            return {"device": device, "selected_type": selected_type, "identity": identity}
 
         self._start_io_operation(kind, "probe", probe)
 
@@ -234,36 +250,23 @@ class ModbusMainWindow(QMainWindow):
         return value
 
     def _confirm_hardware_version(self, result: dict) -> bool:
-        """Confirm a worker-probed device identity without touching the wire."""
+        """Check the probed identity against the selected type (no bus I/O)."""
         device = result["device"]
-        selected_type = result["selected_type"]
-        hw_raw = result["hardware_version"]
-        fw_raw = result["firmware_version"]
-        hw_type = (hw_raw >> 8) & 0xFF
-        hw_rev = hw_raw & 0xFF
-        fw_major = (fw_raw >> 8) & 0xFF
-        fw_minor = fw_raw & 0xFF
-
-        logger.info(
-            "%s hardware rev=%d  firmware=%d.%d",
-            device.connection_info(),
-            hw_rev,
-            fw_major,
-            fw_minor,
-        )
-        expected = DeviceType[selected_type]
-        if hw_type == expected.value:
+        expected: DeviceType = result["selected_type"]
+        identity: DeviceIdentity = result["identity"]
+        logger.info("%s: %s", self.device_label(device), identity)
+        if identity.register_version and identity.register_version != device.REGISTER_VERSION:
+            logger.warning(
+                "%s: firmware register tables v%d.%d differ from the map (v%d.%d); some values may be mislabelled",
+                self.device_label(device), *identity.register_version, *device.REGISTER_VERSION,
+            )
+        if identity.device_type == expected:
             return True
-
-        actual_name = next(
-            (item.name for item in DeviceType if item.value == hw_type),
-            f"unknown (type=0x{hw_type:02X})",
-        )
         answer = QMessageBox.question(
             self,
             "Device Type Mismatch",
-            f"Selected type: {selected_type}\n"
-            f"Hardware reports: {actual_name} (rev={hw_rev}, fw={fw_major}.{fw_minor})\n\n"
+            f"Selected type: {expected.name}\n"
+            f"Hardware reports: {identity}\n\n"
             "The register map may not match the device.\n"
             "Open tab anyway?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -290,6 +293,7 @@ class ModbusMainWindow(QMainWindow):
                 self.manager.disconnect(device)
                 self._finish_connection(kind)
                 return
+            self._identities[device] = io_result["identity"]
 
             self.statusBar().showMessage(f"Loading {kind} device registers…")
 
@@ -352,7 +356,7 @@ class ModbusMainWindow(QMainWindow):
         """Open a DeviceTab for device, or bring the existing tab to front."""
         if device in self._open_devices:
             self.ui.device_tabs.setCurrentWidget(self._open_devices[device])
-            QMessageBox.information(self, "Device Already Connected", f"The device '{device.connection_info()}' is already connected.")
+            QMessageBox.information(self, "Device Already Connected", f"{self.device_label(device)} is already connected.")
             return
 
         if input_values is None or holding_values is None:
@@ -367,10 +371,14 @@ class ModbusMainWindow(QMainWindow):
             )
         except Exception as exc:
             self.manager.disconnect(device)
-            QMessageBox.critical(self, "Device Error", f"Failed to open device '{device.connection_info()}':\n{exc}")
+            QMessageBox.critical(self, "Device Error", f"Failed to open {self.device_label(device)}:\n{exc}")
             return
 
-        self.ui.device_tabs.addTab(tab, device.connection_info())
+        index = self.ui.device_tabs.addTab(tab, self.device_label(device))
+        identity = self._identities.get(device)
+        if identity is not None:
+            self.ui.device_tabs.setTabToolTip(index, str(identity))
+            tab.ui.type_edit.setText(str(identity))
         self._open_devices[device] = tab
         if self.ui.devices_group.isHidden():
             self.ui.devices_group.show()
@@ -441,8 +449,13 @@ class ModbusMainWindow(QMainWindow):
             logger.info("Local scan is already running")
             return
 
-        baudrate = self.ui.baudrate_select.value()
-        logger.info("=== Local scan started (baudrate=%d, id range=%d–%d) ===", baudrate, self._scan_id_range.start, self._scan_id_range.stop - 1)
+        valid, baudrate = self._selected_baudrate()
+        if not valid:
+            return
+        logger.info(
+            "=== Local scan started (baud rate %s, id range %d–%d) ===",
+            baudrate or "auto", self._scan_id_range.start, self._scan_id_range.stop - 1,
+        )
         active = self.manager.discovery_snapshot()["local"]
         in_use_ports = {item["port"] for item in active}
         preserved = list(active)
@@ -454,6 +467,7 @@ class ModbusMainWindow(QMainWindow):
                         "device_id": int(device_id),
                         "host": None,
                         "port": port,
+                        "baudrate": self._port_baudrates.get(port),
                     }
                 )
 
@@ -559,6 +573,8 @@ class ModbusMainWindow(QMainWindow):
                 if port in scan_result["skipped_ports"] and port not in current_active_ports:
                     continue
                 local_devices.setdefault(port, {})[str(item["device_id"])] = item["type"].name
+                if item.get("baudrate"):
+                    self._port_baudrates[port] = item["baudrate"]
             self.available_devices["local"] = local_devices
             ports = sorted(local_devices)
             self._replace_combo_items(self.ui.port_select, ports)
@@ -674,6 +690,7 @@ class ModbusMainWindow(QMainWindow):
                 devices.pop(device_id, None)
                 if not devices:
                     self.available_devices["local"].pop(port, None)
+                    self._port_baudrates.pop(port, None)
                     if self.ui.port_select.currentText() == port:
                         self.ui.port_select.setEditText("")
             self._replace_combo_items(
