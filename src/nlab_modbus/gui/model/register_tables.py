@@ -17,6 +17,7 @@ from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate
 
 from nlab_modbus.core.register_specs import RegisterSpec, RegisterType, decode_register_value, to_raw
+from nlab_modbus.gui.help import COLUMN_HELP, register_help
 
 _DISPLAY = Qt.ItemDataRole.DisplayRole
 _EDIT = Qt.ItemDataRole.EditRole
@@ -86,7 +87,8 @@ class RegisterRow:
             lines.append(limits)
             flags = [text for flag, text in ((spec.persistent, "saved to EEPROM"), (spec.password_protected, "needs service password")) if flag]
             if flags:
-                lines.append("; ".join(flags).capitalize())
+                text = "; ".join(flags)
+                lines.append(text[0].upper() + text[1:])
         return "\n".join(lines)
 
     def parse(self, text: Any, raw: bool) -> int:
@@ -128,6 +130,8 @@ class _RegisterTableModel(QAbstractTableModel):
         return 0 if parent.isValid() else len(self.HEADERS)
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = _DISPLAY) -> Any:
+        if role == Qt.ItemDataRole.WhatsThisRole and orientation == Qt.Orientation.Horizontal:
+            return COLUMN_HELP.get(self.HEADERS[section]) if 0 <= section < len(self.HEADERS) else None
         if role != _DISPLAY:
             return None
         if orientation == Qt.Orientation.Horizontal:
@@ -140,6 +144,8 @@ class _RegisterTableModel(QAbstractTableModel):
         row, col = self._rows[index.row()], index.column()
         if role == Qt.ItemDataRole.ToolTipRole:
             return row.tooltip(self._display_raw) or None
+        if role == Qt.ItemDataRole.WhatsThisRole:
+            return register_help(row.name, row.tooltip(self._display_raw))
         if role in (_DISPLAY, _EDIT):
             if col == self.COL_ID:
                 return row.register_id

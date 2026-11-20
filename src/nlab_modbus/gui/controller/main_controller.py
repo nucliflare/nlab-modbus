@@ -5,10 +5,11 @@ from pathlib import Path
 from typing import Any, cast
 
 from PySide6.QtCore import QSettings, QTimer, Signal
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
+    QWhatsThis,
     QWidget,
 )
 from pymodbus.client import ModbusSerialClient, ModbusTcpClient
@@ -24,6 +25,7 @@ from nlab_modbus.gui.controller.io_worker import DeviceIoThread
 from nlab_modbus.gui.controller.scan_worker import DeviceScanThread
 from nlab_modbus.gui.controller.tab_controller import DeviceTab
 from nlab_modbus.gui.generated.ui_main_window import Ui_MainWindow
+from nlab_modbus.gui.help import HELP_MODE_HINT, MAIN_WINDOW_HELP, STATUS_BAR_HELP, apply_help
 from nlab_modbus.gui.model.log_handler import LogStatusBar, QtLogHandler
 from nlab_modbus.services.manager import DeviceManager
 
@@ -61,6 +63,7 @@ class ModbusMainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
 
         self.ui.setupUi(self.central)
+        apply_help(self.ui, MAIN_WINDOW_HELP)
         self.setCentralWidget(self.central)
 
         self.available_devices: dict[str, dict] = {
@@ -128,6 +131,7 @@ class ModbusMainWindow(QMainWindow):
         Connect main window buttons, menu actions, etc.
         """
         self.action_about.triggered.connect(self.on_about_clicked)
+        self.action_help_mode.triggered.connect(self.toggle_help_mode)
         self.action_licenses.triggered.connect(self.on_licenses_clicked)
         self.action_scan_for_available_devices.triggered.connect(self.scan_for_available_devices)
         self.action_exit.triggered.connect(self.close)
@@ -422,8 +426,13 @@ class ModbusMainWindow(QMainWindow):
         connection_menu.addSeparator()
         connection_menu.addAction(self.action_service_mode)
 
+        self.action_help_mode = QAction("&Help mode", self)
+        self.action_help_mode.setShortcut(QKeySequence("F1"))
+        self.action_help_mode.setStatusTip(HELP_MODE_HINT)
         self.action_about = QAction("&About", self)
         self.action_licenses = QAction("&Licenses", self)
+        help_menu.addAction(self.action_help_mode)
+        help_menu.addSeparator()
         help_menu.addAction(self.action_about)
         help_menu.addAction(self.action_licenses)
 
@@ -436,6 +445,15 @@ class ModbusMainWindow(QMainWindow):
             self._log_status_bar = LogStatusBar(self._log_handler, self)
             self.setStatusBar(self._log_status_bar)
         self.statusBar().showMessage("Ready")
+        self.statusBar().setWhatsThis(STATUS_BAR_HELP)
+
+    def toggle_help_mode(self) -> None:
+        """F1: click any element for an explanation; F1 or Esc again leaves the mode."""
+        if QWhatsThis.inWhatsThisMode():
+            QWhatsThis.leaveWhatsThisMode()
+            return
+        self.statusBar().showMessage(HELP_MODE_HINT, 5000)
+        QWhatsThis.enterWhatsThisMode()
 
     def scan_for_available_devices(self) -> None:
         """Start independent local and remote scans in background threads."""

@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QHeaderView, QInputDialog, QMessageBox, QWidget
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.transport import GATEWAY_BAUDRATE
 from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
+from nlab_modbus.gui.help import DEVICE_TAB_HELP, apply_help
 from nlab_modbus.gui.model.register_tables import (
     HoldingRegisterTableModel,
     InputRegisterTableModel,
@@ -55,6 +56,7 @@ class DeviceTab(QWidget):
         self._plot_dirty = False
         self.ui = Ui_DeviceTab()
         self.ui.setupUi(self)
+        apply_help(self.ui, DEVICE_TAB_HELP)
         self.ui.type_edit.setText(device.device_type.name)
 
         self.time_buffer = NumpyRingBuffer(HISTORY)

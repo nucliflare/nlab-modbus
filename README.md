@@ -37,6 +37,8 @@ mDNS. Pick a port (or host) and Modbus address and press **Connect**. Press
 
 ## Using the GUI
 
+- **Help mode:** press **F1** (or use **Help → Help mode**), then click any
+  element, table row or column header for a short explanation.
 - **Holding registers:** double-click a value to edit it. Edits are checked
   against the firmware limits before they are sent.
 - **Units:** values are shown in physical units. **View → Show raw values**

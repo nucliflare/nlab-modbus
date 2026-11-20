@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The project follows
 
 ### Added
 
+- Help mode: **F1** or **Help → Help mode**, then click any control, table
+  row or column header for a short explanation. Register rows explain their
+  limits, default and flags. A test fails if a widget in the .ui files has no
+  help text.
 - GUI shows physical values with a Unit column (`45.67 V`); **View → Show raw
   values** switches tables and plots to raw register counts (remembered
   between sessions). Edits are accepted in the displayed form and checked
