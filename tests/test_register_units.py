@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 from nlab_modbus.core.register_specs import decode_register_value
+from nlab_modbus.devices.geiger import GeigerDevice
 from nlab_modbus.devices.psu import PSUDevice
 from nlab_modbus.devices.sipm import SiPMDevice
 from nlab_modbus.maps.geiger_map import GEIGER_REGISTER_MAP
@@ -32,26 +33,51 @@ def simulated_client(input_words=None, holding_words=None):
     return client
 
 
-class RegisterUnitTests(unittest.TestCase):
-    def test_existing_maps_match_supplied_firmware_metadata(self):
-        # The fixture records the supplied source hash and register versions.
-        # It contains metadata, not firmware code, and needs no Downloads file.
-        fixture = json.loads(
-            (Path(__file__).parent / "fixtures" / "modbus_register_units.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        for board, register_map in (
-            ("SIPM", SIPM_REGISTER_MAP),
-            ("GM", GEIGER_REGISTER_MAP),
-            ("HV", PSU_REGISTER_MAP),
-        ):
-            for name, spec in register_map.items():
-                with self.subTest(board=board, register=name):
-                    scale, unit = fixture["boards"][board][spec.reg_type.value][str(spec.address)]
-                    self.assertEqual(spec.scale, scale)
-                    self.assertEqual(spec.unit, unit)
+FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "firmware_registers.json").read_text(encoding="utf-8"))
+BOARDS = (
+    ("SIPM", SIPM_REGISTER_MAP, SiPMDevice),
+    ("GM", GEIGER_REGISTER_MAP, GeigerDevice),
+    ("HV", PSU_REGISTER_MAP, PSUDevice),
+)
 
+
+class FirmwareMapTests(unittest.TestCase):
+    """Maps must match tests/fixtures/firmware_registers.json, generated from
+    modbus_reg.c by scripts/firmware_register_fixture.py."""
+
+    def test_maps_cover_every_firmware_register(self):
+        for board, register_map, _device in BOARDS:
+            for kind in ("holding", "input"):
+                with self.subTest(board=board, kind=kind):
+                    expected = [entry["address"] for entry in FIXTURE["boards"][board][kind]]
+                    actual = sorted(spec.address for spec in register_map.values() if spec.reg_type.value == kind)
+                    self.assertEqual(actual, expected)
+
+    def test_maps_match_firmware_scaling_limits_and_flags(self):
+        for board, register_map, _device in BOARDS:
+            firmware = {
+                (kind, entry["address"]): entry
+                for kind in ("holding", "input")
+                for entry in FIXTURE["boards"][board][kind]
+            }
+            for name, spec in register_map.items():
+                entry = firmware[(spec.reg_type.value, spec.address)]
+                with self.subTest(board=board, register=name):
+                    self.assertEqual((spec.scale, spec.unit), (entry["scale"], entry["unit"]))
+                    if spec.reg_type.value == "holding":
+                        self.assertEqual(
+                            (spec.min, spec.max, spec.default, spec.persistent, spec.password_protected),
+                            (entry["min"], entry["max"], entry["default"], entry["eeprom"], entry["password"]),
+                        )
+
+    def test_register_versions_match_firmware(self):
+        for board, _register_map, device in BOARDS:
+            firmware = FIXTURE["boards"][board]
+            with self.subTest(board=board):
+                self.assertEqual(device.REGISTER_VERSION, (firmware["holding_version"], firmware["input_version"]))
+
+
+class RegisterUnitTests(unittest.TestCase):
     def test_sipm_setpoint_is_volts_for_decode_and_encode(self):
         device = SiPMDevice(simulated_client(holding_words={3: 4567}), 1)
         self.assertAlmostEqual(device.read("vout_set"), 45.67)

@@ -53,6 +53,16 @@ class TableLayoutTests(unittest.TestCase):
         self.assertEqual(identity.device_type, DeviceType.PSU)
         self.assertEqual(identity.hardware_revision, 1)
         self.assertEqual(identity.firmware, (0, 3))
+        self.assertIsNone(identity.register_version)
+
+    def test_identify_reads_register_version_and_serial_on_new_firmware(self):
+        client = psu_client(inputs=20, holdings=14)
+        client.inputs[16:19] = [0x0101, 0x1234, 0xABCD]
+
+        identity = PSUDevice(client, 1).identify()
+
+        self.assertEqual(identity.register_version, (1, 1))
+        self.assertEqual(identity.serial_number, 0x1234ABCD)
 
 
 class AccessorTests(unittest.TestCase):

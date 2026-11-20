@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- Register maps cover the full firmware tables: `reset_device_command`,
+  `pwm_max_width_ns`, `modbus_reg_version`, `serial_number_hi/lo` and
+  `pwm_pulse_width_ns`. Specs record firmware defaults and whether a register
+  is saved to EEPROM. `scripts/firmware_register_fixture.py` regenerates the
+  test fixture from `modbus_reg.c`, and the tests now compare every address,
+  scale, unit, limit, default and flag against it.
+
 ### Changed
 
 - Device core: whole register tables are read in one FC04/FC03 transaction
@@ -25,6 +34,8 @@ All notable changes to this project are documented here. The project follows
 
 - SiPM `vout_overload` (and the PSU frame counter) were never refreshed after
   connecting because live polling skipped their addresses.
+- Version words, Modbus frame counters and the Geiger pulse counters decode as
+  unsigned, so they no longer turn negative above 32767.
 
 ### Removed
 

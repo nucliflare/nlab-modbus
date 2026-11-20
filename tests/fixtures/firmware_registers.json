@@ -1,0 +1,1257 @@
+{
+ "source": "modbus_reg.c",
+ "sha256": "49e95e1f4362e5b22055b682c7c40e49ad6687a5b9ed0bb033d12a3168e4e0ab",
+ "boards": {
+  "SIPM": {
+   "holding": [
+    {
+     "address": 0,
+     "symbol": "mb_hold_rs485_mb_addr",
+     "label": "RS485 Modbus address",
+     "scale": 1.0,
+     "unit": null,
+     "min": 1,
+     "max": 254,
+     "default": 1,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 1,
+     "symbol": "mb_hold_rs485_baud",
+     "label": "RS485 Baudrate",
+     "scale": 100.0,
+     "unit": "bps",
+     "min": 96,
+     "max": 10000,
+     "default": 96,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 2,
+     "symbol": "mb_hold_Vout_pwr_en",
+     "label": "Output converter enable",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1,
+     "default": 0,
+     "eeprom": false,
+     "password": false
+    },
+    {
+     "address": 3,
+     "symbol": "mb_hold_VoutSet",
+     "label": "Output voltage setpoint",
+     "scale": 0.01,
+     "unit": "V",
+     "min": 1500,
+     "max": 7800,
+     "default": 1500,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 4,
+     "symbol": "mb_hold_PID_P_Vout",
+     "label": "Output voltage PID P gain",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1000,
+     "default": 100,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 5,
+     "symbol": "mb_hold_PID_I_Vout",
+     "label": "Output voltage PID I gain",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1000,
+     "default": 100,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 6,
+     "symbol": "mb_hold_sipm_comp_en",
+     "label": "SIPM temp. compens. enable",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1,
+     "default": 0,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 7,
+     "symbol": "mb_hold_sipm_comp_Tref",
+     "label": "SIPM compens. reference temp.",
+     "scale": 0.01,
+     "unit": "degC",
+     "min": -5000,
+     "max": 5000,
+     "default": 2000,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 8,
+     "symbol": "mb_hold_sipm_comp_ct",
+     "label": "SIPM temp. compens. coeff.",
+     "scale": 1.0,
+     "unit": "mV/degC",
+     "min": -100,
+     "max": 100,
+     "default": 0,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 9,
+     "symbol": "mb_hold_VoutCorr",
+     "label": "Output voltage correction",
+     "scale": 0.01,
+     "unit": "%",
+     "min": -1000,
+     "max": 1000,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 10,
+     "symbol": "mb_hold_led_drv_enable",
+     "label": "Calib. LED driver enable",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1,
+     "default": 0,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 11,
+     "symbol": "mb_hold_led_drv_period_us",
+     "label": "Calib. LED pulse period",
+     "scale": 1.0,
+     "unit": "us",
+     "min": 1,
+     "max": 650,
+     "default": 1,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 12,
+     "symbol": "mb_hold_led_drv_duration_ns",
+     "label": "Calib. LED pulse duration",
+     "scale": 10.0,
+     "unit": "ns",
+     "min": 1,
+     "max": 100,
+     "default": 1,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 13,
+     "symbol": "mb_hold_led_drv_Imod_reg",
+     "label": "LED driver mod. current reg.",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 4095,
+     "default": 255,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 14,
+     "symbol": "mb_hold_led_drv_Ibias_reg",
+     "label": "LED driver bias current reg.",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 4095,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 15,
+     "symbol": "mb_hold_PassStatic",
+     "label": "Service password",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32767,
+     "max": 32767,
+     "default": -4345,
+     "eeprom": false,
+     "password": false
+    },
+    {
+     "address": 16,
+     "symbol": "mb_reset_device_command",
+     "label": "Reset device command",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32767,
+     "max": 32767,
+     "default": 0,
+     "eeprom": false,
+     "password": false
+    }
+   ],
+   "input": [
+    {
+     "address": 0,
+     "symbol": "mb_HardwareVersion",
+     "label": "Hardware version",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 1,
+     "symbol": "mb_FirmwareVersion",
+     "label": "Firmware version",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 2,
+     "symbol": "mb_Vout_overload",
+     "label": "SIPM output overload",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 3,
+     "symbol": "mb_sipmVoltage_10mV",
+     "label": "SIPM output voltage",
+     "scale": 0.01,
+     "unit": "V"
+    },
+    {
+     "address": 4,
+     "symbol": "mb_sipmCurrent_uA",
+     "label": "SIPM output current",
+     "scale": 1.0,
+     "unit": "uA"
+    },
+    {
+     "address": 5,
+     "symbol": "mb_boardTempAdc",
+     "label": "Current sensor temp.",
+     "scale": 0.01,
+     "unit": "degC"
+    },
+    {
+     "address": 6,
+     "symbol": "mb_rs485.status.rxFramesCnt",
+     "label": "Modbus RX frames counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 7,
+     "symbol": "mb_rs485.status.rxCrcErrCnt",
+     "label": "Modbus CRC error counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 8,
+     "symbol": "mb_rs485.status.rxBadReqCnt",
+     "label": "Modbus bad request counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 9,
+     "symbol": "mb_cpuTemp",
+     "label": "CPU temperature",
+     "scale": 1.0,
+     "unit": "degC"
+    },
+    {
+     "address": 10,
+     "symbol": "mb_boardTemp",
+     "label": "PCB temperature",
+     "scale": 0.01,
+     "unit": "degC"
+    },
+    {
+     "address": 11,
+     "symbol": "mb_eeprom_error",
+     "label": "EEPROM error status",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 12,
+     "symbol": "mb_supplyVoltage",
+     "label": "Supply voltage",
+     "scale": 0.01,
+     "unit": "V"
+    },
+    {
+     "address": 13,
+     "symbol": "mb_adc_sipm_Vout",
+     "label": "SIPM output voltage",
+     "scale": 0.01,
+     "unit": "V"
+    },
+    {
+     "address": 14,
+     "symbol": "mb_SiPMBoardTemp",
+     "label": "SIPM board temperature",
+     "scale": 0.01,
+     "unit": "degC"
+    },
+    {
+     "address": 15,
+     "symbol": "mb_sipmCorrectVoltage_mV",
+     "label": "SIPM correction voltage",
+     "scale": 1.0,
+     "unit": "mV"
+    },
+    {
+     "address": 16,
+     "symbol": "mb_Vout_SupplyFault",
+     "label": "Internal supply fault",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 17,
+     "symbol": "mb_ExtAmp_SupplyFault",
+     "label": "Ext. amp supply fault",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 18,
+     "symbol": "mb_ledDrvTemp",
+     "label": "LED driver temperature",
+     "scale": 1.0,
+     "unit": "degC"
+    },
+    {
+     "address": 19,
+     "symbol": "mb_ledDrvStatus",
+     "label": "LED driver status",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 20,
+     "symbol": "mb_VoutRipple",
+     "label": "Output voltage ripple",
+     "scale": 1.0,
+     "unit": "mV"
+    },
+    {
+     "address": 21,
+     "symbol": "mb_pid_saturation",
+     "label": "PID integrator saturation",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 22,
+     "symbol": "mb_ModbusRegVersion",
+     "label": "Modbus registers version",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 23,
+     "symbol": "mb_unique_id_hi",
+     "label": "Device serial 1",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 24,
+     "symbol": "mb_unique_id_lo",
+     "label": "Device serial 2",
+     "scale": 1.0,
+     "unit": null
+    }
+   ],
+   "holding_version": 2,
+   "input_version": 1
+  },
+  "GM": {
+   "holding": [
+    {
+     "address": 0,
+     "symbol": "mb_hold_rs485_mb_addr",
+     "label": "RS485 Modbus address",
+     "scale": 1.0,
+     "unit": null,
+     "min": 1,
+     "max": 254,
+     "default": 1,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 1,
+     "symbol": "mb_hold_rs485_baud",
+     "label": "RS485 Baudrate",
+     "scale": 100.0,
+     "unit": "bps",
+     "min": 96,
+     "max": 10000,
+     "default": 96,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 2,
+     "symbol": "mb_hold_pwm_enable",
+     "label": "HV GM supply enable",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1,
+     "default": 1,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 3,
+     "symbol": "mb_hold_pwm_setVoltage",
+     "label": "HV GM voltage set",
+     "scale": 1.0,
+     "unit": "V",
+     "min": 50,
+     "max": 650,
+     "default": 550,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 4,
+     "symbol": "mb_hold_pulse_trig_level_mV",
+     "label": "GM pulse trigger level",
+     "scale": 1.0,
+     "unit": "mV",
+     "min": 0,
+     "max": 2500,
+     "default": 200,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 5,
+     "symbol": "mb_hold_dummy",
+     "label": "Reserved",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 0,
+     "default": 0,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 6,
+     "symbol": "mb_hold_pwm_freq_khz",
+     "label": "HV converter frequency",
+     "scale": 1.0,
+     "unit": "kHz",
+     "min": 10,
+     "max": 500,
+     "default": 200,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 7,
+     "symbol": "mb_hold_pwm_max_duty",
+     "label": "HV converter max duty",
+     "scale": 1.0,
+     "unit": "%",
+     "min": 0,
+     "max": 90,
+     "default": 50,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 8,
+     "symbol": "mb_hold_pwm_outVoltComp",
+     "label": "HV output voltage correction",
+     "scale": 0.01,
+     "unit": "%",
+     "min": -1000,
+     "max": 1000,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 9,
+     "symbol": "mb_hold_dummy",
+     "label": "Reserved",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 0,
+     "default": 0,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 10,
+     "symbol": "mb_hold_scale_coeff.p1_a2",
+     "label": "Poly1 a2 coefficient",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32000,
+     "max": 32000,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 11,
+     "symbol": "mb_hold_scale_exp.p1_a2",
+     "label": "Poly1 a2 exponent",
+     "scale": 1.0,
+     "unit": null,
+     "min": -9,
+     "max": 9,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 12,
+     "symbol": "mb_hold_scale_coeff.p1_a1",
+     "label": "Poly1 a1 coefficient",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32000,
+     "max": 32000,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 13,
+     "symbol": "mb_hold_scale_exp.p1_a1",
+     "label": "Poly1 a1 exponent",
+     "scale": 1.0,
+     "unit": null,
+     "min": -9,
+     "max": 9,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 14,
+     "symbol": "mb_hold_scale_coeff.p1_a0",
+     "label": "Poly1 a0 coefficient",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32000,
+     "max": 32000,
+     "default": 1,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 15,
+     "symbol": "mb_hold_scale_exp.p1_a0",
+     "label": "Poly1 a0 exponent",
+     "scale": 1.0,
+     "unit": null,
+     "min": -9,
+     "max": 9,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 16,
+     "symbol": "mb_hold_scale_coeff.th",
+     "label": "Polynomial switch threshold",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32000,
+     "max": 32000,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 17,
+     "symbol": "mb_hold_scale_exp.th",
+     "label": "Threshold exponent",
+     "scale": 1.0,
+     "unit": null,
+     "min": -9,
+     "max": 9,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 18,
+     "symbol": "mb_hold_scale_coeff.p2_a2",
+     "label": "Poly2 a2 coefficient",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32000,
+     "max": 32000,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 19,
+     "symbol": "mb_hold_scale_exp.p2_a2",
+     "label": "Poly2 a2 exponent",
+     "scale": 1.0,
+     "unit": null,
+     "min": -9,
+     "max": 9,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 20,
+     "symbol": "mb_hold_scale_coeff.p2_a1",
+     "label": "Poly2 a1 coefficient",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32000,
+     "max": 32000,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 21,
+     "symbol": "mb_hold_scale_exp.p2_a1",
+     "label": "Poly2 a1 exponent",
+     "scale": 1.0,
+     "unit": null,
+     "min": -9,
+     "max": 9,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 22,
+     "symbol": "mb_hold_scale_coeff.p2_a0",
+     "label": "Poly2 a0 coefficient",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32000,
+     "max": 32000,
+     "default": 1,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 23,
+     "symbol": "mb_hold_scale_exp.p2_a0",
+     "label": "Poly2 a0 exponent",
+     "scale": 1.0,
+     "unit": null,
+     "min": -9,
+     "max": 9,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 24,
+     "symbol": "mb_hold_PID_P_Vout",
+     "label": "Output voltage PID P gain",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1000,
+     "default": 200,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 25,
+     "symbol": "mb_hold_PID_I_Vout",
+     "label": "Output voltage PID I gain",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1000,
+     "default": 500,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 26,
+     "symbol": "mb_hold_adc_freq_kHz",
+     "label": "Output voltage reg. freq",
+     "scale": 1.0,
+     "unit": "kHz",
+     "min": 1,
+     "max": 20,
+     "default": 10,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 27,
+     "symbol": "mb_hold_adc_filter_coeff",
+     "label": "Output voltage filter coeff.",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 100,
+     "default": 10,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 28,
+     "symbol": "mb_hold_PassStatic",
+     "label": "Service password",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32767,
+     "max": 32767,
+     "default": -4345,
+     "eeprom": false,
+     "password": false
+    },
+    {
+     "address": 29,
+     "symbol": "mb_reset_device_command",
+     "label": "Reset device command",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32767,
+     "max": 32767,
+     "default": 0,
+     "eeprom": false,
+     "password": false
+    },
+    {
+     "address": 30,
+     "symbol": "mb_hold_pwm_max_width_10ns",
+     "label": "HV converter max pulse width",
+     "scale": 10.0,
+     "unit": "ns",
+     "min": 10,
+     "max": 1000,
+     "default": 300,
+     "eeprom": true,
+     "password": true
+    }
+   ],
+   "input": [
+    {
+     "address": 0,
+     "symbol": "mb_HardwareVersion",
+     "label": "Hardware version",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 1,
+     "symbol": "mb_FirmwareVersion",
+     "label": "Firmware version",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 2,
+     "symbol": "mb_input_pulses",
+     "label": "GM lamp pulse counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 3,
+     "symbol": "mb_input_pulses_per_sec",
+     "label": "GM pulse frequency",
+     "scale": 1.0,
+     "unit": "cps"
+    },
+    {
+     "address": 4,
+     "symbol": "mb_input_dose_level_mSvh",
+     "label": "Dose rate",
+     "scale": 1.0,
+     "unit": "mSv/h"
+    },
+    {
+     "address": 5,
+     "symbol": "mb_input_dose_mSv",
+     "label": "Total dose",
+     "scale": 1.0,
+     "unit": "mSv"
+    },
+    {
+     "address": 6,
+     "symbol": "mb_rs485.status.rxFramesCnt",
+     "label": "Modbus RX frames counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 7,
+     "symbol": "mb_rs485.status.rxCrcErrCnt",
+     "label": "Modbus CRC error counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 8,
+     "symbol": "mb_rs485.status.rxBadReqCnt",
+     "label": "Modbus bad request counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 9,
+     "symbol": "mb_cpuTemp",
+     "label": "CPU temperature",
+     "scale": 1.0,
+     "unit": "degC"
+    },
+    {
+     "address": 10,
+     "symbol": "mb_boardTemp",
+     "label": "PCB temperature",
+     "scale": 0.01,
+     "unit": "degC"
+    },
+    {
+     "address": 11,
+     "symbol": "mb_eeprom_error",
+     "label": "EEPROM error status",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 12,
+     "symbol": "mb_supplyVoltage",
+     "label": "Supply voltage",
+     "scale": 0.01,
+     "unit": "V"
+    },
+    {
+     "address": 13,
+     "symbol": "mb_hvVoltage",
+     "label": "HV output voltage",
+     "scale": 1.0,
+     "unit": "V"
+    },
+    {
+     "address": 14,
+     "symbol": "mb_pulseInteger",
+     "label": "GM analog integrator voltage",
+     "scale": 1.0,
+     "unit": "mV"
+    },
+    {
+     "address": 15,
+     "symbol": "mb_gmSupplyFault",
+     "label": "Internal supply fault",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 16,
+     "symbol": "mb_pwm_duty",
+     "label": "HV converter PWM duty",
+     "scale": 0.1,
+     "unit": "%"
+    },
+    {
+     "address": 17,
+     "symbol": "mb_VoutRipple",
+     "label": "HV output voltage ripple",
+     "scale": 1.0,
+     "unit": "mV"
+    },
+    {
+     "address": 18,
+     "symbol": "mb_pwm_cmpss_action",
+     "label": "HV voltage protection action",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 19,
+     "symbol": "mb_pid_saturation",
+     "label": "PID integrator saturation",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 20,
+     "symbol": "mb_ModbusRegVersion",
+     "label": "Modbus registers version",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 21,
+     "symbol": "mb_unique_id_hi",
+     "label": "Device serial 1",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 22,
+     "symbol": "mb_unique_id_lo",
+     "label": "Device serial 2",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 23,
+     "symbol": "mb_pwm_pulse_width_10ns",
+     "label": "HV converter pulse width",
+     "scale": 10.0,
+     "unit": "ns"
+    }
+   ],
+   "holding_version": 1,
+   "input_version": 1
+  },
+  "HV": {
+   "holding": [
+    {
+     "address": 0,
+     "symbol": "mb_hold_rs485_mb_addr",
+     "label": "RS485 Modbus address",
+     "scale": 1.0,
+     "unit": null,
+     "min": 1,
+     "max": 254,
+     "default": 1,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 1,
+     "symbol": "mb_hold_rs485_baud",
+     "label": "RS485 Baudrate",
+     "scale": 100.0,
+     "unit": "bps",
+     "min": 96,
+     "max": 10000,
+     "default": 96,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 2,
+     "symbol": "mb_hold_pwm_enable",
+     "label": "HV output enable",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1,
+     "default": 0,
+     "eeprom": false,
+     "password": false
+    },
+    {
+     "address": 3,
+     "symbol": "mb_hold_pwm_setVoltage",
+     "label": "HV output voltage set",
+     "scale": 1.0,
+     "unit": "V",
+     "min": 50,
+     "max": 1500,
+     "default": 100,
+     "eeprom": true,
+     "password": false
+    },
+    {
+     "address": 4,
+     "symbol": "mb_hold_pwm_freq_khz",
+     "label": "HV converter frequency",
+     "scale": 1.0,
+     "unit": "kHz",
+     "min": 10,
+     "max": 100,
+     "default": 40,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 5,
+     "symbol": "mb_hold_pwm_max_duty",
+     "label": "HV converter max duty",
+     "scale": 1.0,
+     "unit": "%",
+     "min": 0,
+     "max": 60,
+     "default": 50,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 6,
+     "symbol": "mb_hold_pwm_outVoltComp",
+     "label": "HV output voltage correction",
+     "scale": 0.01,
+     "unit": "%",
+     "min": -1000,
+     "max": 1000,
+     "default": 0,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 7,
+     "symbol": "mb_hold_PID_P_Vout",
+     "label": "Output voltage PID P gain",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1000,
+     "default": 15,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 8,
+     "symbol": "mb_hold_PID_I_Vout",
+     "label": "Output voltage PID I gain",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 1000,
+     "default": 200,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 9,
+     "symbol": "mb_hold_adc_freq_kHz",
+     "label": "HV voltage reg. freq",
+     "scale": 1.0,
+     "unit": "kHz",
+     "min": 1,
+     "max": 20,
+     "default": 10,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 10,
+     "symbol": "mb_hold_adc_filter_coeff",
+     "label": "HV voltage filter coeff.",
+     "scale": 1.0,
+     "unit": null,
+     "min": 0,
+     "max": 100,
+     "default": 10,
+     "eeprom": true,
+     "password": true
+    },
+    {
+     "address": 11,
+     "symbol": "mb_hold_PassStatic",
+     "label": "Service password",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32767,
+     "max": 32767,
+     "default": -4345,
+     "eeprom": false,
+     "password": false
+    },
+    {
+     "address": 12,
+     "symbol": "mb_reset_device_command",
+     "label": "Reset device command",
+     "scale": 1.0,
+     "unit": null,
+     "min": -32767,
+     "max": 32767,
+     "default": 0,
+     "eeprom": false,
+     "password": false
+    },
+    {
+     "address": 13,
+     "symbol": "mb_hold_pwm_max_width_10ns",
+     "label": "HV converter max pulse width",
+     "scale": 10.0,
+     "unit": "ns",
+     "min": 10,
+     "max": 1000,
+     "default": 300,
+     "eeprom": true,
+     "password": true
+    }
+   ],
+   "input": [
+    {
+     "address": 0,
+     "symbol": "mb_HardwareVersion",
+     "label": "Hardware version",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 1,
+     "symbol": "mb_FirmwareVersion",
+     "label": "Firmware version",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 2,
+     "symbol": "mb_rs485.status.rxFramesCnt",
+     "label": "Modbus RX frames counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 3,
+     "symbol": "mb_rs485.status.rxCrcErrCnt",
+     "label": "Modbus CRC error counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 4,
+     "symbol": "mb_rs485.status.rxBadReqCnt",
+     "label": "Modbus bad request counter",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 5,
+     "symbol": "mb_cpuTemp",
+     "label": "CPU temperature",
+     "scale": 1.0,
+     "unit": "degC"
+    },
+    {
+     "address": 6,
+     "symbol": "mb_boardTemp",
+     "label": "PCB temperature",
+     "scale": 0.01,
+     "unit": "degC"
+    },
+    {
+     "address": 7,
+     "symbol": "mb_eeprom_error",
+     "label": "EEPROM error status",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 8,
+     "symbol": "mb_supplyVoltage",
+     "label": "Supply voltage",
+     "scale": 0.01,
+     "unit": "V"
+    },
+    {
+     "address": 9,
+     "symbol": "mb_hvVoltage",
+     "label": "HV output voltage",
+     "scale": 1.0,
+     "unit": "V"
+    },
+    {
+     "address": 10,
+     "symbol": "mb_pwm_duty",
+     "label": "HV converter PWM duty",
+     "scale": 0.1,
+     "unit": "%"
+    },
+    {
+     "address": 11,
+     "symbol": "mb_hvCurrent",
+     "label": "HV output current",
+     "scale": 1.0,
+     "unit": "uA"
+    },
+    {
+     "address": 12,
+     "symbol": "mb_VoutRipple",
+     "label": "HV output voltage ripple",
+     "scale": 1.0,
+     "unit": "mV"
+    },
+    {
+     "address": 13,
+     "symbol": "mb_pwm_cmpss_action",
+     "label": "HV voltage protection action",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 14,
+     "symbol": "mb_pid_saturation",
+     "label": "PID integrator saturation",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 15,
+     "symbol": "mb_PMTTemp",
+     "label": "PMT module temperature",
+     "scale": 0.01,
+     "unit": "degC"
+    },
+    {
+     "address": 16,
+     "symbol": "mb_ModbusRegVersion",
+     "label": "Modbus registers version",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 17,
+     "symbol": "mb_unique_id_hi",
+     "label": "Device serial 1",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 18,
+     "symbol": "mb_unique_id_lo",
+     "label": "Device serial 2",
+     "scale": 1.0,
+     "unit": null
+    },
+    {
+     "address": 19,
+     "symbol": "mb_pwm_pulse_width_10ns",
+     "label": "HV converter pulse width",
+     "scale": 10.0,
+     "unit": "ns"
+    }
+   ],
+   "holding_version": 1,
+   "input_version": 1
+  }
+ }
+}

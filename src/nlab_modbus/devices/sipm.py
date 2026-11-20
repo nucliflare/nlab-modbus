@@ -1,6 +1,6 @@
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.enums import DeviceType
-from nlab_modbus.maps.sipm_map import SIPM_REGISTER_MAP
+from nlab_modbus.maps import sipm_map
 
 
 class SiPMDevice(BaseModbusDevice):
@@ -8,5 +8,6 @@ class SiPMDevice(BaseModbusDevice):
     calibration LED driver. ``get_<register>()``/``set_<register>()`` accessors
     are generated from SIPM_REGISTER_MAP."""
 
-    REGISTER_MAP = SIPM_REGISTER_MAP
+    REGISTER_MAP = sipm_map.SIPM_REGISTER_MAP
     DEVICE_TYPE = DeviceType.SIPM
+    REGISTER_VERSION = sipm_map.REGISTER_VERSION
