@@ -1,40 +1,40 @@
 from __future__ import annotations
 
 import logging
-import random
 from typing import TYPE_CHECKING
 
 import pyqtgraph as pg
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import QTimer, Slot
 from PySide6.QtWidgets import QHeaderView, QInputDialog, QMessageBox, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.transport import GATEWAY_BAUDRATE
 from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
-from nlab_modbus.gui.model.register_tables import HoldingRegisterTableModel, InputRegisterTableModel, ProtectedRowDelegate, RegisterRow
+from nlab_modbus.gui.model.register_tables import (
+    HoldingRegisterTableModel,
+    InputRegisterTableModel,
+    ProtectedRowDelegate,
+    RegisterRow,
+)
 from nlab_modbus.gui.model.ring_buffer import NumpyRingBuffer
 from nlab_modbus.services.polling_worker import TRANSPORT_REGISTERS, DevicePollingThread
 
 if TYPE_CHECKING:
     from nlab_modbus.gui.controller.main_controller import ModbusMainWindow
 
-
 logger = logging.getLogger(__name__)
+
+HISTORY = 1000  # samples kept per plotted register
+PLOT_REFRESH_MS = 100  # redraw at most 10x per second, and only while visible
+# Colour-blind safe palette (Okabe-Ito), cycled for plotted registers.
+PALETTE = ("#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7", "#56B4E9", "#000000", "#F0E442")
 
 
 class DeviceTab(QWidget):
-    """
-    Generic GUI tab for displaying and controlling one Modbus device.
+    """One connected device: holding/input tables, live plot and its polling thread.
 
-    Responsibilities:
-    - Owns one concrete BaseModbusDevice-derived instance.
-    - Loads the matching .ui file.
-    - Displays holding/input register tables.
-    - Emits/handles GUI-level register write requests.
-    - Manages pyqtgraph plots for selected live values.
-
-    This class should not directly own polling logic if you can avoid it.
-    Prefer feeding it snapshots from a worker/service layer.
+    All bus I/O runs on the DevicePollingThread; this widget only renders
+    snapshots and queues writes.
     """
 
     def __init__(
@@ -46,213 +46,178 @@ class DeviceTab(QWidget):
         holding_values: dict[str, int],
     ) -> None:
         super().__init__(parent)
-
-        self.device = device
         if device.device_type is None:
             raise ValueError("Cannot open a tab for a device without a device type")
+        self.device = device
         self.main_widget = parent
         self._closing = False
-        # self.ui = self._load_ui(self.TAB_UI)
+        self._plot_dirty = False
         self.ui = Ui_DeviceTab()
         self.ui.setupUi(self)
         self.ui.type_edit.setText(device.device_type.name)
-        self.input_register_buffer = {}
-        self.time_buffer = NumpyRingBuffer(1000)
+
+        self.time_buffer = NumpyRingBuffer(HISTORY)
+        self.input_register_buffer = {name: NumpyRingBuffer(HISTORY) for name in input_values}
         self.plot_items: dict[str, pg.PlotDataItem] = {}
-        # self.main_plot = None
 
-        input_registers = []
-        for register, value in input_values.items():
-            self.input_register_buffer[register] = NumpyRingBuffer(1000)
-            spec = self.device.REGISTER_MAP[register]
-            input_registers.append(RegisterRow(spec.address, register, value, description=spec.description))
-        holding_registers = []
-        for name, value in holding_values.items():
-            spec = self.device.REGISTER_MAP[name]
-            holding_registers.append(
+        spec_of = device.REGISTER_MAP.__getitem__
+        self.input_model = InputRegisterTableModel(
+            [RegisterRow(spec_of(name).address, name, value, description=spec_of(name).description)
+             for name, value in input_values.items()]
+        )
+        self.holding_model = HoldingRegisterTableModel(
+            [
                 RegisterRow(
-                    spec.address, name, value,
-                    password_protected=spec.password_protected,
-                    min_val=spec.min,
-                    max_val=spec.max,
-                    description=spec.description,
+                    spec_of(name).address, name, value,
+                    password_protected=spec_of(name).password_protected,
+                    min_val=spec_of(name).min, max_val=spec_of(name).max,
+                    description=spec_of(name).description,
                 )
-            )
-        self.holding_model = HoldingRegisterTableModel(holding_registers)
-        self.input_model = InputRegisterTableModel(input_registers)
-
-        self.lines_dict: dict[str, list[pg.PlotDataItem]] = {}
+                for name, value in holding_values.items()
+            ]
+        )
 
         self._setup_register_tables()
+        self._setup_plot()
         self._connect_signals()
-        self._setup_plots()
+        self._plot_timer = QTimer(self)
+        self._plot_timer.timeout.connect(self._refresh_plot)
+        self._plot_timer.start(PLOT_REFRESH_MS)
         self._run_worker()
 
+    # ---- setup -------------------------------------------------------------
+
     def _setup_register_tables(self) -> None:
-        """Attach models to the two table views and apply column sizing."""
         self.ui.holding_table_view.setModel(self.holding_model)
         self.ui.holding_table_view.setItemDelegate(ProtectedRowDelegate(self.ui.holding_table_view))
         self.ui.input_table_view.setModel(self.input_model)
-
-        for table in (
-            self.ui.holding_table_view,
-            self.ui.input_table_view,
-        ):
+        for table in (self.ui.holding_table_view, self.ui.input_table_view):
             table.setAlternatingRowColors(True)
             table.verticalHeader().setVisible(False)
 
-        self._configure_input_table()
-        self._configure_holding_table()
-
-    def _configure_holding_table(self) -> None:
-        """ID fixed to content; Register and Value user-resizable; Value stretches to fill."""
-        table = self.ui.holding_table_view
-        header = table.horizontalHeader()
-
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # ID
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)       # Register
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)       # Value
+        header = self.ui.holding_table_view.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
         header.setStretchLastSection(True)
 
-    def _configure_input_table(self) -> None:
-        """ID and Plot fixed; Register and Value user-resizable; Register stretches to fill."""
-        table = self.ui.input_table_view
-        header = table.horizontalHeader()
-
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # ID
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)       # Register
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)       # Value
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Plot
+        header = self.ui.input_table_view.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         header.setStretchLastSection(False)
-        header.resizeSection(1, 180)  # Register initial width
-        header.resizeSection(2, 80)   # Value initial width
+        header.resizeSection(1, 180)
+        header.resizeSection(2, 80)
+
+    def _setup_plot(self) -> None:
+        """Plot tuned for redraw cost: clipped, peak-downsampled curves and plain axes."""
+        layout = pg.GraphicsLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        self.ui.input_plot.setCentralItem(layout)
+        self.ui.input_plot.setBackground("#ffffff")
+        layout.addLabel("Input registers", angle=-90)
+        self.main_plot = layout.addPlot()
+        self.main_plot.showGrid(x=True, y=True, alpha=0.2)
+        self.main_plot.setClipToView(True)
+        self.main_plot.setDownsampling(auto=True, mode="peak")
+        self.main_plot.addLegend(offset=(10, 10))
+        self.main_plot.getViewBox().setBorder(pg.mkPen("#808080"))
+        layout.nextRow()
+        layout.addLabel("Time [s]", col=1)
 
     def _connect_signals(self) -> None:
-        """Wire model signals, button clicks, and plot toggle to their slots."""
         self.holding_model.write_requested.connect(self.holding_write_requested)
         self.input_model.plot_enabled_changed.connect(self.plot_enabled_changed)
         self.ui.tab_disconnect_btn.clicked.connect(self.close_tab)
         self.ui.clear_plot_btn.clicked.connect(self.clear_buffers)
 
-    def _setup_plots(self) -> None:
-        """
-        Main plot setup entry point.
-
-        Assumes the .ui file contains a pyqtgraph GraphicsView or PlotWidget
-        named something like:
-
-            self.ui.plot_graphics_view
-
-        Adjust the widget name to match your .ui file, because Qt Designer
-        will not read your mind. Tragically.
-        """
-        labels = {
-            "input": "Input registers",
-        }
-
-        self._setup_single_plot(
-            plot=self.ui.input_plot,
-            key="input",
-            label=labels["input"],
-        )
-
-    def _setup_single_plot(
-        self,
-        plot: pg.GraphicsView,
-        key: str,
-        label: str,
-    ) -> None:
-        """Configure one pyqtgraph GraphicsView: layout, axes, grid, and Y label."""
-        layout = pg.GraphicsLayout()
-        layout.setContentsMargins(10, 10, 10, 10)
-
-        plot.setCentralItem(layout)
-        plot.setBackground("#ffffff")
-
-        layout.addLabel(label, angle=-90)
-
-        self.main_plot = layout.addPlot()
-
-        self.main_plot.showAxis("right")
-        self.main_plot.showAxis("top")
-        self.main_plot.showGrid(x=True, y=True, alpha=0.2)
-
-        dashed_grey_pen = pg.mkPen(
-            "grey",
-            width=2,
-            style=Qt.PenStyle.DashLine,
-        )
-
-        self.main_plot.getAxis("bottom").setTickPen(dashed_grey_pen)
-        self.main_plot.getAxis("left").setTickPen(dashed_grey_pen)
-
-        layout.nextRow()
-        layout.addLabel("Time [s]", col=1)
-
-        viewbox = self.main_plot.getViewBox()
-        viewbox.setBorder(pg.mkPen({"color": "black", "width": 2}))
-        viewbox.setBackgroundColor((255, 255, 255))
-
-    def _run_worker(self):
-        """Create and start the DevicePollingThread, wiring its signals to this tab's slots."""
+    def _run_worker(self) -> None:
         self.polling_thread = DevicePollingThread(
             device=self.device,
             refresh_rate_ms=self.ui.refresh_spinner.value(),
             holding_refresh_rate_ms=self.ui.holding_refresh_spinner.value(),
         )
-        self.polling_thread.input_registers_updated.connect(self.update_input_registers)
-        self.polling_thread.holding_registers_updated.connect(self.update_holding_registers)
-        self.polling_thread.polling_failed.connect(self.on_device_polling_failed)
-        self.polling_thread.connection_lost.connect(self.on_device_connection_lost)
-        self.polling_thread.transport_changed.connect(self.on_transport_configuration_changed)
-        self.polling_thread.write_succeeded.connect(self.on_device_write_succeeded)
-        self.polling_thread.write_failed.connect(self.on_device_write_failed)
-        self.polling_thread.service_unlock_finished.connect(self.on_service_unlock_finished)
-        self.ui.refresh_spinner.valueChanged.connect(self.polling_thread.update_refresh_rate)
-        self.ui.holding_refresh_spinner.valueChanged.connect(self.polling_thread.update_holding_refresh_rate)
-        self.polling_thread.start()
+        worker = self.polling_thread
+        worker.input_registers_updated.connect(self.update_input_registers)
+        worker.holding_registers_updated.connect(self.update_holding_registers)
+        worker.polling_failed.connect(self.on_device_polling_failed)
+        worker.connection_lost.connect(self.on_device_connection_lost)
+        worker.transport_changed.connect(self.on_transport_configuration_changed)
+        worker.write_succeeded.connect(self.on_device_write_succeeded)
+        worker.write_failed.connect(self.on_device_write_failed)
+        worker.service_unlock_finished.connect(self.on_service_unlock_finished)
+        self.ui.refresh_spinner.valueChanged.connect(worker.update_refresh_rate)
+        self.ui.holding_refresh_spinner.valueChanged.connect(worker.update_holding_refresh_rate)
+        worker.start()
 
-    def update_input_registers(
-        self,
-        elapsed_s: float,
-        data: dict[str, int],
-    ) -> None:
-        """Slot: receive a polled snapshot, push values into buffers and the table model."""
+    # ---- data ----------------------------------------------------------------
+
+    def update_input_registers(self, elapsed_s: float, data: dict[str, int]) -> None:
+        """Store a polled snapshot; the table updates now, the plot on the next timer tick."""
+        if self._closing:
+            return
         self.time_buffer.append(elapsed_s)
-        for register_name, value in data.items():
-            register_id = self.device.get_register_address(register_name)
-            self.input_model.update_value_by_register_id(register_id, value)
-            self.input_register_buffer[register_name].append(value)
+        for name, buffer in self.input_register_buffer.items():
+            buffer.append(data.get(name, float("nan")))
+        self.input_model.update_values(data)
+        self._plot_dirty = True
 
-        self.update_plots()
+    def update_holding_registers(self, data: dict[str, int]) -> None:
+        if not self._closing:
+            self.holding_model.update_values(data)
 
-    def update_holding_registers(self, data: dict[str, int]):
-        """Slot: refresh the holding register table after a successful write-readback."""
-        for register_name, value in data.items():
-            row_index = self.device.get_register_address(register_name)
-            self.holding_model.update_value(row_index, value)
+    def _refresh_plot(self) -> None:
+        if not self._plot_dirty or not self.plot_items or not self.isVisible():
+            return
+        self._plot_dirty = False
+        times = self.time_buffer.array()
+        for name, item in self.plot_items.items():
+            if item.isVisible():
+                item.setData(times, self.input_register_buffer[name].array())
 
-    def on_device_polling_failed(self, error: str):
-        logger.warning("%s poll failed: %s", self.device.connection_info(), error)
+    @Slot(str, bool)
+    def plot_enabled_changed(self, register_name: str, enabled: bool) -> None:
+        item = self.plot_items.get(register_name)
+        if item is None and enabled:
+            color = PALETTE[len(self.plot_items) % len(PALETTE)]
+            item = self.main_plot.plot([], [], pen=pg.mkPen(color, width=1), name=register_name)
+            self.plot_items[register_name] = item
+        if item is not None:
+            item.setVisible(enabled)
+            self._plot_dirty = True
+
+    def clear_buffers(self) -> None:
+        """Reset the plot history."""
+        for buffer in self.input_register_buffer.values():
+            buffer.clear()
+        self.time_buffer.clear()
+        self._plot_dirty = True
+
+    # ---- worker events ---------------------------------------------------------
+
+    @property
+    def label(self) -> str:
+        return self.main_widget.device_label(self.device)
+
+    def on_device_polling_failed(self, error: str) -> None:
+        logger.warning("%s poll failed: %s", self.label, error)
 
     def on_device_connection_lost(self, error: str) -> None:
         """Detach a device after repeated failures, such as a USB unplug."""
         if self._closing:
             return
-        connection = self.device.connection_info()
-        logger.error("Connection lost for %s: %s", connection, error)
-        main_widget = self.main_widget
-        device = self.device
+        label, main_widget, device = self.label, self.main_widget, self.device
+        logger.error("Connection lost for %s: %s", label, error)
         self.close_tab()
         main_widget.forget_available_device(device)
         QMessageBox.warning(
             main_widget,
             "Device Disconnected",
-            f"The device '{connection}' stopped responding and was disconnected.\n\n"
-            "Reconnect the hardware, then scan again.",
+            f"{label} stopped responding and was disconnected.\n\nReconnect the hardware, then scan again.",
         )
 
-    def on_device_write_failed(self, register_name: str, error: str, password_required: bool):
+    def on_device_write_failed(self, register_name: str, error: str, password_required: bool) -> None:
         logger.error("%s: writing %s failed: %s", self.label, register_name, error)
         if password_required and register_name != "pass_static":
             self._prompt_service_password()
@@ -264,18 +229,13 @@ class DeviceTab(QWidget):
         self.set_service_mode(accepted)
         self.main_widget.update_service_mode_action()
         if not accepted:
-            QMessageBox.warning(
-                self,
-                "Service Password Rejected",
-                "The device rejected the service password and stays locked.",
-            )
+            QMessageBox.warning(self, "Service Password Rejected", "The device rejected the service password and stays locked.")
 
     def on_transport_configuration_changed(self, register_name: str, raw_value: int) -> None:
         """The board no longer answers on this link after an rs485_* change: close and rescan."""
         if self._closing:
             return
-        main_widget = self.main_widget
-        device = self.device
+        main_widget, device, label = self.main_widget, self.device, self.label
         remote = device.link is not None and device.link.kind == "tcp"
         if register_name == "rs485_mb_addr":
             detail = f"The board now answers at Modbus address {raw_value}."
@@ -286,7 +246,6 @@ class DeviceTab(QWidget):
                     "\nThe gateway stays at its ser2net baud rate (9600), so the board is "
                     "unreachable through it until ser2net.yaml is changed."
                 )
-        label = self.label
         self.close_tab()
         main_widget.forget_available_device(device)
         main_widget.rescan("remote" if remote else "local")
@@ -296,9 +255,7 @@ class DeviceTab(QWidget):
             f"{register_name} was changed on {label}.\n{detail}\n\nThe connection was closed and a new scan started.",
         )
 
-    @property
-    def label(self) -> str:
-        return self.main_widget.device_label(self.device)
+    # ---- writes and service mode -----------------------------------------------
 
     @property
     def service_mode(self) -> bool:
@@ -315,9 +272,7 @@ class DeviceTab(QWidget):
             self.polling_thread.enqueue_service_unlock(password)
 
     def _prompt_service_password(self) -> None:
-        self.request_service_mode(
-            "Write rejected — enter the service password:",
-        )
+        self.request_service_mode("Write rejected — enter the service password:")
 
     @Slot(int, str, int)
     def holding_write_requested(self, register_id: int, register_name: str, new_value: int) -> None:
@@ -354,75 +309,23 @@ class DeviceTab(QWidget):
         )
         return answer == QMessageBox.StandardButton.Yes
 
-    @Slot(str, bool)
-    def plot_enabled_changed(self, register_name: str, enabled: bool) -> None:
-        """
-        Called when a model row toggles plotting on/off.
-        """
-        if enabled:
-            if register_name not in self.plot_items:
-                color = (
-                    random.randint(128, 255),
-                    random.randint(128, 255),
-                    random.randint(128, 255),
-                )
+    # ---- teardown ------------------------------------------------------------
 
-                plot = self.main_plot.plot(
-                    [],
-                    [],
-                    pen=pg.mkPen({"color": color, "width": 3.0}),
-                    name=register_name,
-                )
-
-                self.plot_items[register_name] = plot
-            self.plot_items[register_name].show()
-        else:
-            self.plot_items[register_name].hide()
-
-    def update_plots(self) -> None:
-        """
-        Update one plotted line.
-
-        Parameters
-        ----------
-        key:
-            Plot group key, for example "input" or "holding".
-        x:
-            Time axis.
-        y:
-            Register values.
-        channel:
-            Line index inside self.lines_dict[key].
-        """
-
-        registers_to_plot = self.input_model.plot_enabled_dict()
-        for register, enabled in registers_to_plot.items():
-            if enabled:
-                self.plot_items[register].setData(self.time_buffer.array(), self.input_register_buffer[register].array())
-
-    def close(self):
-        """Stop the polling thread before its Modbus client is released."""
+    def stop_polling(self) -> None:
+        """Ask the polling thread to stop (non-blocking)."""
         self._closing = True
-        if self.polling_thread and self.polling_thread.isRunning():
-            self.polling_thread.stop()
-            if not self.polling_thread.wait(2000):
-                logger.error("Polling thread did not stop in time for %s", self.device.connection_info())
+        self._plot_timer.stop()
+        self.polling_thread.stop()
 
-    def close_tab(self):
-        """Remove this tab from the QTabWidget and schedule the widget for deletion."""
+    def close_tab(self) -> None:
+        """Remove the tab now; the transport is released once the polling thread exits."""
         index = self.main_widget.ui.device_tabs.indexOf(self)
         if index == -1:
             return
-        self.close()
-        self.main_widget.manager.disconnect(self.device)
+        self.stop_polling()
+        self.main_widget.release_device(self.device, self.polling_thread)
         self.main_widget.ui.device_tabs.removeTab(index)
         self.main_widget._open_devices.pop(self.device, None)
         self.main_widget._identities.pop(self.device, None)
         self.main_widget.hide_tabs()
         self.deleteLater()
-
-    def clear_buffers(self):
-        """Reset all ring buffers and the time axis (clears the plot history)."""
-        for buffer in self.input_register_buffer.values():
-            buffer.clear()
-        self.time_buffer.clear()

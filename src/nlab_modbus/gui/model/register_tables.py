@@ -34,6 +34,22 @@ class RegisterRow:
     description: str = ""
 
 
+def _apply_values(model, values: dict[str, int], column: int) -> None:
+    """Update changed rows in place and notify views once, not once per cell."""
+    changed = []
+    for name, value in values.items():
+        index = model._row_by_name.get(name)
+        if index is not None and model._rows[index].value != value:
+            model._rows[index].value = value
+            changed.append(index)
+    if changed:
+        model.dataChanged.emit(
+            model.index(min(changed), column),
+            model.index(max(changed), column),
+            [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole],
+        )
+
+
 class ProtectedRowDelegate(QStyledItemDelegate):
     """Replaces the selection highlight with a muted tone for password-protected rows."""
 
@@ -73,6 +89,7 @@ class HoldingRegisterTableModel(QAbstractTableModel):
     ) -> None:
         super().__init__(parent)
         self._rows = rows or []
+        self._row_by_name = {row.name: index for index, row in enumerate(self._rows)}
         self._service_mode = False
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
@@ -174,6 +191,10 @@ class HoldingRegisterTableModel(QAbstractTableModel):
         self.write_requested.emit(row.register_id, row.name, new_value)
         return True
 
+    def update_values(self, values: dict[str, int]) -> None:
+        """Apply a snapshot ``{name: raw}``; emits one dataChanged for the changed span."""
+        _apply_values(self, values, self.COL_VALUE)
+
     def update_value(self, register_id: int, value: int) -> None:
         for row_idx, row in enumerate(self._rows):
             if row.register_id != register_id:
@@ -215,6 +236,7 @@ class InputRegisterTableModel(QAbstractTableModel):
     ) -> None:
         super().__init__(parent)
         self._rows: list[RegisterRow] = rows if rows is not None else []
+        self._row_by_name = {row.name: index for index, row in enumerate(self._rows)}
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         if parent.isValid():
@@ -386,6 +408,10 @@ class InputRegisterTableModel(QAbstractTableModel):
                 Qt.ItemDataRole.EditRole,
             ],
         )
+
+    def update_values(self, values: dict[str, int]) -> None:
+        """Apply a snapshot ``{name: raw}``; emits one dataChanged for the changed span."""
+        _apply_values(self, values, self.COL_VALUE)
 
     def update_value_by_register_id(
         self,

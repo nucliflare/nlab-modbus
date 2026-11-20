@@ -6,7 +6,6 @@ from datetime import datetime
 
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (
-    QApplication,
     QDialog,
     QHBoxLayout,
     QPlainTextEdit,
@@ -74,7 +73,6 @@ class LogStatusBar(QStatusBar):
     def _on_log_record(self, message: str, level: int) -> None:
         if level >= self._min_level:
             self.showMessage(message)
-            QApplication.processEvents()
 
     def mouseDoubleClickEvent(self, event) -> None:
         if self._log_dialog is not None and self._log_dialog.isVisible():
@@ -105,6 +103,7 @@ class LogDialog(QDialog):
         font.setPointSize(9)
         self._text.setFont(font)
 
+        self._min_level = logging.DEBUG if debug_mode else logging.INFO
         self._refresh_text(debug_mode)
 
         btn_clear = QPushButton("Clear")
@@ -132,7 +131,8 @@ class LogDialog(QDialog):
         self._text.verticalScrollBar().setValue(self._text.verticalScrollBar().maximum())
 
     def _on_live_record(self, message: str, level: int) -> None:
-        self._text.appendPlainText(message)
+        if level >= self._min_level:
+            self._text.appendPlainText(message)
 
     def _on_clear(self) -> None:
         self._log_handler.clear()

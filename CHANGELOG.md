@@ -25,6 +25,17 @@ All notable changes to this project are documented here. The project follows
 
 ### Changed
 
+- GUI responsiveness. Measured with a PSU and a SiPM connected, every
+  register plotted with full history:
+  - Longest GUI stall from plotting: 54 ms → 31 ms (p99 47 ms → 26 ms).
+    Plots redraw at most 10× per second and only for the visible tab, with
+    1 px pens and no dashed tick pens or extra axes.
+  - Closing a tab no longer blocks the GUI (124–202 ms → 7 ms). The
+    transport is released when the polling thread exits, and on exit all
+    threads are stopped together.
+  - Tables apply each snapshot with one batched update.
+  - Log lines no longer force re-entrant `processEvents()` calls.
+  - Plots use fixed colour-blind-safe colours and show a legend.
 - Device tabs are labelled with their link (`COM3 @ 9600 · id 1`) and show
   the board identity (type, revision, firmware, and on newer firmware the
   register version and serial number). A register-table version that differs

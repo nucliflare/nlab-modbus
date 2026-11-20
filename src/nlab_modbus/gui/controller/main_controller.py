@@ -77,6 +77,7 @@ class ModbusMainWindow(QMainWindow):
         self._scan_id_range = scan_id_range
         self._port_baudrates: dict[str, int] = {}  # serial port -> baud rate found by the scan
         self._identities: dict[BaseModbusDevice, DeviceIdentity] = {}
+        self._stopping_threads: set = set()  # polling threads of closed tabs, still finishing
         self._apply_initial_baudrate(initial_baudrate)
         self._setup_window()
         self._setup_menu_bar()
@@ -749,9 +750,30 @@ class ModbusMainWindow(QMainWindow):
         for worker in background_threads:
             worker.wait()
 
-        for device_tab in list(self._open_devices.values()):
-            device_tab.close()
+        polling_threads = [tab.polling_thread for tab in self._open_devices.values()]
+        polling_threads += list(self._stopping_threads)
+        for tab in list(self._open_devices.values()):
+            tab.stop_polling()
+        for thread in polling_threads:  # all stop concurrently; each finishes its transaction
+            if not thread.wait(3000):
+                logger.error("Polling thread did not stop in time")
         self.manager.close_all()
+
+    def release_device(self, device: BaseModbusDevice, thread) -> None:
+        """Close a device's transport once its polling thread has exited (no GUI wait)."""
+        if not thread.isRunning():
+            self.manager.disconnect(device)
+            return
+        self._stopping_threads.add(thread)
+
+        def finished() -> None:
+            self._stopping_threads.discard(thread)
+            if device not in self._open_devices and not self._closing:  # not reopened meanwhile
+                self.manager.disconnect(device)
+            thread.deleteLater()
+
+        thread.finished.connect(finished)
+        thread.stop()
 
     def closeEvent(self, event):
         self._shutdown()
