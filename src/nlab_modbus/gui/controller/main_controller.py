@@ -135,6 +135,7 @@ class ModbusMainWindow(QMainWindow):
         self.action_disconnect_all.triggered.connect(self.on_disconnect_all_clicked)
         self.action_clear_plot.triggered.connect(self.on_clear_plot_clicked)
         self.action_debug_mode.triggered.connect(self._on_debug_mode_toggled)
+        self.action_raw_values.triggered.connect(self._on_raw_values_toggled)
         self.action_service_mode.triggered.connect(self.on_service_mode_toggled)
         self.ui.device_tabs.currentChanged.connect(self._on_tab_changed)
         self.ui.port_select.currentIndexChanged.connect(self._update_comboboxes)
@@ -409,7 +410,11 @@ class ModbusMainWindow(QMainWindow):
         self.action_clear_plot = QAction("&Clear Plot", self)
         self.action_debug_mode = QAction("&Debug Mode", self)
         self.action_debug_mode.setCheckable(True)
+        self.action_raw_values = QAction("Show &raw values", self)
+        self.action_raw_values.setCheckable(True)
+        self.action_raw_values.setToolTip("Show raw register counts instead of physical values with units")
         view_menu.addAction(self.action_clear_plot)
+        view_menu.addAction(self.action_raw_values)
         view_menu.addAction(self.action_debug_mode)
 
         self.action_service_mode = QAction("&Service Mode", self)
@@ -801,9 +806,19 @@ class ModbusMainWindow(QMainWindow):
     def _restore_settings(self) -> None:
         settings = QSettings("EWT", "nlab-modbus-gui")
         debug = settings.value("view/debug_mode", False, type=bool)
+        self.action_raw_values.setChecked(settings.value("view/raw_values", False, type=bool))
         self.action_debug_mode.setChecked(debug)
         if hasattr(self, "_log_status_bar"):
             self._log_status_bar.set_debug_mode(debug)
+
+    @property
+    def show_raw_values(self) -> bool:
+        return self.action_raw_values.isChecked()
+
+    def _on_raw_values_toggled(self, checked: bool) -> None:
+        for tab in self._open_devices.values():
+            tab.set_display_raw(checked)
+        QSettings("EWT", "nlab-modbus-gui").setValue("view/raw_values", checked)
 
     def _on_debug_mode_toggled(self, checked: bool) -> None:
         if hasattr(self, "_log_status_bar"):

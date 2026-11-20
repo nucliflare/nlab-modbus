@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The project follows
 
 ### Added
 
+- GUI shows physical values with a Unit column (`45.67 V`); **View → Show raw
+  values** switches tables and plots to raw register counts (remembered
+  between sessions). Edits are accepted in the displayed form and checked
+  against the firmware limits before anything is sent. Missing sensors show
+  "n/a". Tooltips list the raw/physical counterpart, limits, default, and
+  whether a register is saved to EEPROM or needs the service password.
+
 - Discovery tries each serial port at 9600 and then 115200 baud and reports
   the rate that answered. Before, ports were scanned at one baud rate
   (default 115200), so boards on RS-485 adapters at the firmware default of

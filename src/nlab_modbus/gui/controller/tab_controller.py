@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import QTimer, Slot
 from PySide6.QtWidgets import QHeaderView, QInputDialog, QMessageBox, QWidget
@@ -60,22 +61,15 @@ class DeviceTab(QWidget):
         self.input_register_buffer = {name: NumpyRingBuffer(HISTORY) for name in input_values}
         self.plot_items: dict[str, pg.PlotDataItem] = {}
 
-        spec_of = device.REGISTER_MAP.__getitem__
+        specs = device.REGISTER_MAP
         self.input_model = InputRegisterTableModel(
-            [RegisterRow(spec_of(name).address, name, value, description=spec_of(name).description)
-             for name, value in input_values.items()]
+            [RegisterRow.from_spec(name, specs[name], value) for name, value in input_values.items()]
         )
         self.holding_model = HoldingRegisterTableModel(
-            [
-                RegisterRow(
-                    spec_of(name).address, name, value,
-                    password_protected=spec_of(name).password_protected,
-                    min_val=spec_of(name).min, max_val=spec_of(name).max,
-                    description=spec_of(name).description,
-                )
-                for name, value in holding_values.items()
-            ]
+            [RegisterRow.from_spec(name, specs[name], value) for name, value in holding_values.items()]
         )
+        for model in (self.input_model, self.holding_model):
+            model.set_display_raw(parent.show_raw_values)
 
         self._setup_register_tables()
         self._setup_plot()
@@ -95,20 +89,17 @@ class DeviceTab(QWidget):
             table.setAlternatingRowColors(True)
             table.verticalHeader().setVisible(False)
 
-        header = self.ui.holding_table_view.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        header.setStretchLastSection(True)
-
-        header = self.ui.input_table_view.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        header.setStretchLastSection(False)
-        header.resizeSection(1, 180)
-        header.resizeSection(2, 80)
+        fit, drag = QHeaderView.ResizeMode.ResizeToContents, QHeaderView.ResizeMode.Interactive
+        for table, modes in (
+            (self.ui.holding_table_view, (fit, drag, drag, fit)),
+            (self.ui.input_table_view, (fit, drag, drag, fit, fit)),
+        ):
+            header = table.horizontalHeader()
+            for column, mode in enumerate(modes):
+                header.setSectionResizeMode(column, mode)
+            header.resizeSection(1, 180)
+            header.resizeSection(2, 80)
+            header.setStretchLastSection(table is self.ui.holding_table_view)
 
     def _setup_plot(self) -> None:
         """Plot tuned for redraw cost: clipped, peak-downsampled curves and plain axes."""
@@ -128,6 +119,9 @@ class DeviceTab(QWidget):
 
     def _connect_signals(self) -> None:
         self.holding_model.write_requested.connect(self.holding_write_requested)
+        self.holding_model.edit_rejected.connect(
+            lambda name, reason: logger.warning("%s: %s not written: %s", self.label, name, reason)
+        )
         self.input_model.plot_enabled_changed.connect(self.plot_enabled_changed)
         self.ui.tab_disconnect_btn.clicked.connect(self.close_tab)
         self.ui.clear_plot_btn.clicked.connect(self.clear_buffers)
@@ -174,14 +168,33 @@ class DeviceTab(QWidget):
         times = self.time_buffer.array()
         for name, item in self.plot_items.items():
             if item.isVisible():
-                item.setData(times, self.input_register_buffer[name].array())
+                item.setData(times, self._plot_values(name))
+
+    def _plot_values(self, name: str) -> np.ndarray:
+        """History of one register as displayed: raw counts or physical values."""
+        raw = self.input_register_buffer[name].array()
+        if self.input_model.display_raw:
+            return raw
+        spec = self.device.REGISTER_MAP[name]
+        values = raw * spec.scale
+        if spec.unavailable is not None:
+            values[raw == spec.unavailable] = np.nan
+        return values
+
+    def set_display_raw(self, raw: bool) -> None:
+        """Show raw register counts instead of physical values (tables and plot)."""
+        for model in (self.input_model, self.holding_model):
+            model.set_display_raw(raw)
+        self._plot_dirty = True
 
     @Slot(str, bool)
     def plot_enabled_changed(self, register_name: str, enabled: bool) -> None:
         item = self.plot_items.get(register_name)
         if item is None and enabled:
             color = PALETTE[len(self.plot_items) % len(PALETTE)]
-            item = self.main_plot.plot([], [], pen=pg.mkPen(color, width=1), name=register_name)
+            unit = self.device.REGISTER_MAP[register_name].unit
+            label = f"{register_name} [{unit}]" if unit else register_name
+            item = self.main_plot.plot([], [], pen=pg.mkPen(color, width=1), name=label)
             self.plot_items[register_name] = item
         if item is not None:
             item.setVisible(enabled)
