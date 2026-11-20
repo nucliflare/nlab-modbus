@@ -13,6 +13,7 @@ ones), so resending is left to the caller.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from pymodbus.client import ModbusSerialClient, ModbusTcpClient
@@ -25,6 +26,11 @@ COMMON_BAUDRATES: tuple[int, ...] = (9600, 19200, 38400, 57600, 115200)
 GATEWAY_BAUDRATE = 9600  # ser2net.yaml on the digitizer: 9600n81
 GATEWAY_PORTS: tuple[int, ...] = (5001, 5002)
 MDNS_NAME = "nucliflare"
+
+# Raw frames are logged here at DEBUG, but only while enabled (off by default).
+FRAME_LOGGER = "nlab_modbus.frames"
+_frames = logging.getLogger(FRAME_LOGGER)
+_frames.setLevel(logging.WARNING)
 
 _LARGEST_FRAME = 8 + 5 + 2 * 32  # request + response bytes for a 32-register block
 _PROBE_FRAME = 8 + 9  # request + response bytes for a 2-register identity read
@@ -66,9 +72,57 @@ class Link:
         return f"{self.address}:{self.port}"
 
 
+def set_frame_logging(enabled: bool) -> None:
+    """Log every request (TX) and received chunk (RX) in hex on ``FRAME_LOGGER``."""
+    _frames.setLevel(logging.DEBUG if enabled else logging.WARNING)
+
+
+def frame_logging_enabled() -> bool:
+    return _frames.isEnabledFor(logging.DEBUG)
+
+
+def _hex(data: bytes) -> str:
+    return " ".join(f"{byte:02X}" for byte in data)
+
+
+def _frame_tracers(label: str) -> dict:
+    """pymodbus trace hooks logging each request (TX) and each complete reply (RX) in hex.
+
+    pymodbus reports the receive buffer as it grows, so RX is logged once, when
+    the reply has been decoded; a partial reply is logged as incomplete before
+    the next request.
+    """
+    pending = {"rx": b""}
+
+    def flush_incomplete() -> None:
+        if pending["rx"]:
+            _frames.debug("%s RX %-10s %s", label, "incomplete", _hex(pending["rx"]))
+            pending["rx"] = b""
+
+    def trace_packet(sending: bool, data: bytes) -> bytes:
+        if not _frames.isEnabledFor(logging.DEBUG):
+            pending["rx"] = b""
+        elif sending:
+            flush_incomplete()
+            header = f"id {data[0]} FC{data[1]:02d}" if len(data) > 1 else ""
+            _frames.debug("%s TX %-10s %s", label, header, _hex(data))
+        elif data:
+            previous = pending["rx"]
+            pending["rx"] = data if data.startswith(previous) else previous + data
+        return data
+
+    def trace_pdu(sending: bool, pdu):
+        if not sending and pending["rx"] and _frames.isEnabledFor(logging.DEBUG):
+            _frames.debug("%s RX %-10s %s", label, "", _hex(pending["rx"]))
+            pending["rx"] = b""
+        return pdu
+
+    return {"trace_packet": trace_packet, "trace_pdu": trace_pdu}
+
+
 def serial_client(port: str, baudrate: int, *, timeout: float | None = None) -> ModbusSerialClient:
     """RTU client on a local serial port, 8N1 (the only framing the firmware supports)."""
-    return ModbusSerialClient(
+    client = ModbusSerialClient(
         port=port,
         framer=FramerType.RTU,
         baudrate=baudrate,
@@ -77,15 +131,19 @@ def serial_client(port: str, baudrate: int, *, timeout: float | None = None) -> 
         stopbits=1,
         timeout=response_timeout(baudrate) if timeout is None else timeout,
         retries=0,
+        **_frame_tracers(port),
     )
+    return client
 
 
 def tcp_client(host: str, port: int, *, timeout: float | None = None) -> ModbusTcpClient:
     """RTU-over-TCP client for a ser2net gateway (raw RTU frames, not Modbus/TCP)."""
-    return ModbusTcpClient(
+    client = ModbusTcpClient(
         host=host,
         port=port,
         framer=FramerType.RTU,
         timeout=gateway_timeout() if timeout is None else timeout,
         retries=0,
+        **_frame_tracers(f"{host}:{port}"),
     )
+    return client

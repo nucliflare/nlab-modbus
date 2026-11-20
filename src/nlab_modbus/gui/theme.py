@@ -95,6 +95,9 @@ class ThemeColors:
     tooltip_text: str
     console_bg: str
     console_text: str
+    console_debug: str
+    console_warning: str
+    console_error: str
     plot_background: str
     plot_foreground: str
     plot_border: str
@@ -133,6 +136,9 @@ LIGHT = ThemeColors(
     tooltip_text="#EEF1F4",
     console_bg=BRAND_INK,
     console_text="#EEF1F4",
+    console_debug="#9AA5B1",
+    console_warning="#F0A23B",
+    console_error="#FF6B6E",
     plot_background=BRAND_WHITE,
     plot_foreground="#4A5561",
     plot_border="#C9D0D6",
@@ -172,6 +178,9 @@ DARK = ThemeColors(
     tooltip_text="#EEF1F4",
     console_bg=BRAND_INK,
     console_text="#EEF1F4",
+    console_debug="#9AA5B1",
+    console_warning="#F0A23B",
+    console_error="#FF6B6E",
     plot_background=BRAND_INK,
     plot_foreground="#9AA5B1",
     plot_border="#26313B",
@@ -212,6 +221,9 @@ CLASSIC = ThemeColors(
     tooltip_text="#000000",
     console_bg="#FFFFFF",
     console_text="#000000",
+    console_debug="#505050",
+    console_warning="#B54708",
+    console_error="#B00020",
     plot_background="#FFFFFF",
     plot_foreground="#969696",
     plot_border="#808080",

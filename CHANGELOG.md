@@ -7,6 +7,18 @@ All notable changes to this project are documented here. The project follows
 
 ### Added
 
+- Debug console: **View → Debug console** (F12), or double-click the status
+  bar, opens the live log in its own window. It replaces the old log dialog.
+  - **Filters:** by level, by source (connections and polling, discovery,
+    GUI, Modbus frames) and by text. Lines are coloured by level.
+  - **Controls:** Pause/Resume, Clear, Copy, and Save to a file.
+  - **Modbus frames:** logs each request (TX, with address and function
+    code) and each complete reply (RX) in hex, using pymodbus's trace hooks.
+    It is off by default, costs nothing while off, and stops when the window
+    closes. A request without an RX line got no reply.
+  - **Performance:** lines are appended in 100 ms batches and capped at
+    5000. With both boards polled and frames on, the longest GUI stall
+    stayed under 30 ms.
 - The GUI follows the Eastern Wall Technologies design system, using the same
   theme as nlab-community:
   - **Themes:** **View → Theme** offers EWT light (default), EWT dark or

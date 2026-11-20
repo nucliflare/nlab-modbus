@@ -46,7 +46,10 @@ mDNS. Pick a port (or host) and Modbus address and press **Connect**. Press
 - **Service password:** grey rows need it; use **Connection → Service mode**.
 - **Plots:** tick **Plot** next to an input register. The spin boxes set the
   polling intervals.
-- **Log:** double-click the status bar to open it.
+- **Debug console:** **View → Debug console** (F12), or double-click the
+  status bar, opens the live log in its own window. You can filter it by
+  level, source or text, and pause, copy or save it. Tick **Modbus frames**
+  to log every request and reply in hex.
 - **Theme:** **View → Theme** offers EWT light (default), EWT dark or Classic.
   The change applies at the next start; `NLAB_THEME=dark` overrides it for one launch.
 

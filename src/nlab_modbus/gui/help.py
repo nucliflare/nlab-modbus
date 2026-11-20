@@ -136,11 +136,30 @@ COLUMN_HELP = {
     "Plot": _html("Plot", "Tick to add the register to the plot."),
 }
 
+DEBUG_CONSOLE_HELP = {
+    "level_select": _html("Level", "Lowest severity shown. Modbus frames and scan details are logged at <i>Debug</i>."),
+    "source_select": _html(
+        "Source",
+        "Show one part of the application: connections and polling, discovery, the GUI, or raw Modbus frames.",
+    ),
+    "filter_edit": _html("Filter text", "Show only lines containing this text, e.g. a port, an address or a register name."),
+    "frames_check": _html(
+        "Modbus frames",
+        "Logs every request (TX) and reply (RX) in hex, e.g. <tt>COM3 TX id 1 FC04 01 04 00 00 00 02 71 CB</tt>. "
+        "A request without an RX line got no reply. Turns off when this window closes.",
+    ),
+    "pause_btn": _html("Pause", "Freezes the view to read it; new lines are kept and shown on Resume."),
+    "clear_btn": _html("Clear", "Deletes the log history."),
+    "copy_btn": _html("Copy", "Copies the lines currently shown to the clipboard."),
+    "save_btn": _html("Save", "Saves the lines currently shown to a text file."),
+    "view": _html("Log", "Newest lines at the bottom; the view follows new lines while scrolled to the end."),
+}
+
 HELP_MODE_HINT = "Help mode: click any element to see what it does (Esc to cancel)."
 
 STATUS_BAR_HELP = _html(
     "Status bar",
-    "Latest message. Double-click for the full log; <i>View → Debug mode</i> adds details.",
+    "Latest message. Double-click to open the debug console; <i>View → Debug mode</i> also shows debug messages here.",
 )
 
 

@@ -31,6 +31,8 @@ def text_pairs(c: ThemeColors) -> list[tuple[str, str, str]]:
         ("connect pressed", c.on_action, c.action_pressed),
         ("disconnect", c.on_stop, c.stop_bg), ("disconnect pressed", c.on_stop, c.stop_pressed),
         ("tooltip", c.tooltip_text, c.tooltip_bg), ("log", c.console_text, c.console_bg),
+        ("log debug", c.console_debug, c.console_bg), ("log warning", c.console_warning, c.console_bg),
+        ("log error", c.console_error, c.console_bg),
         ("plot axis", c.plot_foreground, c.plot_background),
         ("warning", c.status_warning, c.bg), ("error", c.status_error, c.bg),
     ]

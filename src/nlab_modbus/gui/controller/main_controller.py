@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import QSettings, QTimer, Signal
+from PySide6.QtCore import QSettings, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import (
     QComboBox,
@@ -25,6 +25,7 @@ from nlab_modbus.discovery.scan import scan_local_modbus_devices, scan_remote_bo
 from nlab_modbus.gui.controller.io_worker import DeviceIoThread
 from nlab_modbus.gui.controller.scan_worker import DeviceScanThread
 from nlab_modbus.gui.controller.tab_controller import DeviceTab
+from nlab_modbus.gui.debug_console import DebugConsole
 from nlab_modbus.gui.generated.ui_main_window import Ui_MainWindow
 from nlab_modbus.gui import theme
 from nlab_modbus.gui.help import HELP_MODE_HINT, MAIN_WINDOW_HELP, STATUS_BAR_HELP, apply_help
@@ -86,6 +87,7 @@ class ModbusMainWindow(QMainWindow):
         self._port_baudrates: dict[str, int] = {}  # serial port -> baud rate found by the scan
         self._identities: dict[BaseModbusDevice, DeviceIdentity] = {}
         self._stopping_threads: set = set()  # polling threads of closed tabs, still finishing
+        self._debug_console: DebugConsole | None = None
         self._apply_initial_baudrate(initial_baudrate)
         self._setup_window()
         self._setup_menu_bar()
@@ -137,6 +139,7 @@ class ModbusMainWindow(QMainWindow):
         """
         self.action_about.triggered.connect(self.on_about_clicked)
         self.action_help_mode.triggered.connect(self.toggle_help_mode)
+        self.action_debug_console.triggered.connect(self.open_debug_console)
         self.action_licenses.triggered.connect(self.on_licenses_clicked)
         self.action_scan_for_available_devices.triggered.connect(self.scan_for_available_devices)
         self.action_exit.triggered.connect(self.close)
@@ -422,8 +425,13 @@ class ModbusMainWindow(QMainWindow):
         self.action_raw_values = QAction("Show &raw values", self)
         self.action_raw_values.setCheckable(True)
         self.action_raw_values.setToolTip("Show raw register counts instead of physical values with units")
+        self.action_debug_console = QAction("Debug &console", self)
+        self.action_debug_console.setShortcut(QKeySequence("F12"))
+        self.action_debug_console.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         view_menu.addAction(self.action_clear_plot)
         view_menu.addAction(self.action_raw_values)
+        view_menu.addSeparator()
+        view_menu.addAction(self.action_debug_console)
         view_menu.addAction(self.action_debug_mode)
         view_menu.addSeparator()
         theme_menu = view_menu.addMenu("&Theme")
@@ -444,6 +452,7 @@ class ModbusMainWindow(QMainWindow):
 
         self.action_help_mode = QAction("&Help mode", self)
         self.action_help_mode.setShortcut(QKeySequence("F1"))
+        self.action_help_mode.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         self.action_help_mode.setStatusTip(HELP_MODE_HINT)
         self.action_about = QAction("&About", self)
         self.action_licenses = QAction("&Licenses", self)
@@ -459,9 +468,22 @@ class ModbusMainWindow(QMainWindow):
         """
         if self._log_handler is not None:
             self._log_status_bar = LogStatusBar(self._log_handler, self)
+            self._log_status_bar.open_console_requested.connect(self.open_debug_console)
             self.setStatusBar(self._log_status_bar)
         self.statusBar().showMessage("Ready")
         self.statusBar().setWhatsThis(STATUS_BAR_HELP)
+
+    def open_debug_console(self) -> DebugConsole:
+        """Show the debug console window (one instance, raised if already open)."""
+        if self._log_handler is None:  # e.g. a window built without main_app's logging
+            self._log_handler = QtLogHandler()
+            logging.getLogger("nlab_modbus").addHandler(self._log_handler)
+        if self._debug_console is None:
+            self._debug_console = DebugConsole(self._log_handler, self)
+        self._debug_console.show()
+        self._debug_console.raise_()
+        self._debug_console.activateWindow()
+        return self._debug_console
 
     def toggle_help_mode(self) -> None:
         """F1: click any element for an explanation; F1 or Esc again leaves the mode."""
@@ -783,6 +805,8 @@ class ModbusMainWindow(QMainWindow):
         if self._closing:
             return
         self._closing = True
+        if self._debug_console is not None:
+            self._debug_console.close()  # also stops frame logging
         background_threads = [*self._scan_threads.values(), *self._io_threads]
         for worker in background_threads:
             worker.requestInterruption()
