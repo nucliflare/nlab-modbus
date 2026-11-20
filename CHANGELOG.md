@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-20
+
+Refactor of the core, discovery and GUI:
+- register maps checked against the firmware tables;
+- automatic baud-rate detection for MicroUSB, RS-485 and gateway links;
+- a more responsive GUI with physical units;
+- the Eastern Wall Technologies design system;
+- F1 help mode and a debug console.
+
+The `get_`/`set_` register accessors are unchanged. Library behaviour that
+changed:
+- `connect_local()` defaults to 9600 baud;
+- `read_snapshot()` returns every input register;
+- missing temperature sensors read as NaN;
+- I/O errors raise typed `RuntimeError` subclasses.
+
 ### Added
 
 - Debug console: **View → Debug console** (F12), or double-click the status
@@ -174,6 +190,7 @@ All notable changes to this project are documented here. The project follows
   connection window or prints a traceback for every unanswered Modbus address.
 - Unscoped link-local IPv6 mDNS addresses are excluded from remote scan targets.
 
-[Unreleased]: https://github.com/nucliflare/nlab-modbus/compare/v0.2.7...HEAD
+[Unreleased]: https://github.com/nucliflare/nlab-modbus/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/nucliflare/nlab-modbus/compare/v0.2.7...v0.3.0
 [0.2.7]: https://github.com/nucliflare/nlab-modbus/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/nucliflare/nlab-modbus/compare/v0.2.5...v0.2.6
