@@ -116,7 +116,7 @@ try:
         if elapsed >= DURATION_S:
             break
 
-        # Single bus transaction: read snapshot registers 3-19 in one FC04 call
+        # One bus transaction: all input registers in a single FC04 read
         snap = device.read_snapshot()
 
         cps      = int(snap.get("pulses_per_sec", 0))

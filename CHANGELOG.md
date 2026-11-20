@@ -13,7 +13,6 @@ All notable changes to this project are documented here. The project follows
   against the firmware limits before anything is sent. Missing sensors show
   "n/a". Tooltips list the raw/physical counterpart, limits, default, and
   whether a register is saved to EEPROM or needs the service password.
-
 - Discovery tries each serial port at 9600 and then 115200 baud and reports
   the rate that answered. Before, ports were scanned at one baud rate
   (default 115200), so boards on RS-485 adapters at the firmware default of
@@ -22,7 +21,6 @@ All notable changes to this project are documented here. The project follows
   (`scan_remote_endpoints`). mDNS results list each digitizer once (IPv4
   preferred), so a board is never probed through two addresses that would
   evict each other's ser2net session.
-
 - Register maps cover the full firmware tables: `reset_device_command`,
   `pwm_max_width_ns`, `modbus_reg_version`, `serial_number_hi/lo` and
   `pwm_pulse_width_ns`. Specs record firmware defaults and whether a register
@@ -69,6 +67,9 @@ All notable changes to this project are documented here. The project follows
   hardware/firmware version words.
 - Missing I2C temperature sensors (raw -30000) decode as NaN instead of
   -300 degC; raw reads are unchanged.
+- README rewritten as a short quick start (install, launch, connection
+  table); design notes moved to `docs/ARCHITECTURE.md`. The SiPM notebook
+  passes its baud rate explicitly.
 
 ### Fixed
 
@@ -91,6 +92,8 @@ All notable changes to this project are documented here. The project follows
 ### Removed
 
 - Unused `scripts/utilities.py` scan helpers.
+- `docs/REFACTORING_PLAN.md`; its open items are done or covered by
+  `docs/ARCHITECTURE.md`.
 
 ## [0.2.7] - 2026-11-05
 
