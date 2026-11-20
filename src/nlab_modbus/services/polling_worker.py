@@ -8,6 +8,7 @@ from typing import Any
 from PySide6.QtCore import QThread, Signal
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
+from nlab_modbus.core.errors import PasswordRequired
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +50,8 @@ class DevicePollingThread(QThread):
     input_registers_updated = Signal(float, dict)
     holding_registers_updated = Signal(dict)
 
-    write_succeeded = Signal(str)
-    write_failed = Signal(str)
+    write_succeeded = Signal(str)  # register name
+    write_failed = Signal(str, str, bool)  # register name, message, password required
     transport_changed = Signal(str)
 
     polling_failed = Signal(str)
@@ -64,7 +65,6 @@ class DevicePollingThread(QThread):
         holding_refresh_rate_ms: int = 1000,
         max_consecutive_failures: int = 3,
         max_writes_per_cycle: int = 8,
-        initial_input_values: dict[str, Any] | None = None,
         parent: Any | None = None,
     ) -> None:
         super().__init__(parent)
@@ -79,7 +79,6 @@ class DevicePollingThread(QThread):
         self._write_queue: queue.Queue[RegisterWriteCommand] = queue.Queue()
         self._last_holding_poll: float = 0.0
         self._consecutive_failures = 0
-        self._input_values_cache = dict(initial_input_values or {})
 
     # ---- thread lifecycle ----------------------------------------------
 
@@ -180,14 +179,14 @@ class DevicePollingThread(QThread):
             try:
                 self._execute_write(command)
             except Exception as exc:
-                error_str = f"{command.register_name}: {exc}"
-                if "exception_code=4" in str(exc):
-                    logger.warning("Write rejected (password?) for register %s", command.register_name)
+                password_required = isinstance(exc, PasswordRequired)
+                if password_required:
+                    logger.warning("Write of %s rejected: service password required", command.register_name)
                 else:
-                    logger.exception("Write failed for register %s", command.register_name)
-                self.write_failed.emit(error_str)
+                    logger.error("Write of %s failed: %s", command.register_name, exc)
+                self.write_failed.emit(command.register_name, str(exc), password_required)
             else:
-                self.write_succeeded.emit(f"{command.register_name}: OK")
+                self.write_succeeded.emit(command.register_name)
                 did_write = True
                 if command.register_name in {"rs485_mb_addr", "rs485_baud"}:
                     self._stop_event.set()
@@ -213,21 +212,16 @@ class DevicePollingThread(QThread):
         try:
             holding_values = self.device.get_all_holding_registers(raw=True)
         except Exception as exc:
-            logger.exception("Holding poll failed for device %s", self.device)
+            logger.warning("Holding poll failed for device %s: %s", self.device, exc)
             self.polling_failed.emit(str(exc))
             return
         self.holding_registers_updated.emit(holding_values)
 
     def _poll_device_once(self) -> bool:
-        """Poll input registers once and emit a timestamped snapshot."""
+        """Read all input registers in one transaction and emit a timestamped snapshot."""
         try:
             t_elapsed = time.perf_counter() - self._t0
-            snapshot_reader = getattr(self.device, "read_snapshot", None)
-            if callable(snapshot_reader):
-                self._input_values_cache.update(snapshot_reader(raw=True))
-                input_values = dict(self._input_values_cache)
-            else:
-                input_values = self.device.get_all_input_registers(raw=True)
+            input_values = self.device.read_snapshot(raw=True)
         except Exception as exc:
             logger.warning("Polling failed for device %s: %s", self.device, exc)
             self.polling_failed.emit(str(exc))

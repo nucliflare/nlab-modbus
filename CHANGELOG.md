@@ -5,6 +5,31 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+### Changed
+
+- Device core: whole register tables are read in one FC04/FC03 transaction
+  (holding polls go from up to 29 frames to one). The table length each
+  board's firmware implements is detected on first use, so older firmware
+  with shorter tables keeps working.
+- `get_<register>()`/`set_<register>()` accessors are generated from the
+  register maps instead of ~650 lines of hand-written wrappers; names are
+  unchanged.
+- I/O failures raise typed errors (`DeviceUnavailable`, `PasswordRequired`,
+  `IllegalDataAddress`, …, all `RuntimeError` subclasses) instead of
+  string-matched pymodbus messages. `DeviceIdentity` decodes the
+  hardware/firmware version words.
+- Missing I2C temperature sensors (raw -30000) decode as NaN instead of
+  -300 degC; raw reads are unchanged.
+
+### Fixed
+
+- SiPM `vout_overload` (and the PSU frame counter) were never refreshed after
+  connecting because live polling skipped their addresses.
+
+### Removed
+
+- Unused `scripts/utilities.py` scan helpers.
+
 ## [0.2.7] - 2026-11-05
 
 ### Fixed

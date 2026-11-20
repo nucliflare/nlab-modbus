@@ -61,8 +61,6 @@ class DeviceTab(QWidget):
         self.plot_items: dict[str, pg.PlotDataItem] = {}
         # self.main_plot = None
 
-        self._initial_input_values = dict(input_values)
-
         input_registers = []
         for register, value in input_values.items():
             self.input_register_buffer[register] = NumpyRingBuffer(1000)
@@ -201,7 +199,6 @@ class DeviceTab(QWidget):
             device=self.device,
             refresh_rate_ms=self.ui.refresh_spinner.value(),
             holding_refresh_rate_ms=self.ui.holding_refresh_spinner.value(),
-            initial_input_values=self._initial_input_values,
         )
         self.polling_thread.input_registers_updated.connect(self.update_input_registers)
         self.polling_thread.holding_registers_updated.connect(self.update_holding_registers)
@@ -254,9 +251,9 @@ class DeviceTab(QWidget):
             "Reconnect the hardware, then scan again.",
         )
 
-    def on_device_write_failed(self, error: str):
-        logger.error("%s write failed: %s", self.device.connection_info(), error)
-        if error.startswith("pass_static:") and self._pending_service_password is not None:
+    def on_device_write_failed(self, register_name: str, error: str, password_required: bool):
+        logger.error("%s write of %s failed: %s", self.device.connection_info(), register_name, error)
+        if register_name == "pass_static" and self._pending_service_password is not None:
             self._pending_service_password = None
             self.set_service_mode(False)
             self.main_widget.update_service_mode_action()
@@ -266,11 +263,11 @@ class DeviceTab(QWidget):
                 "The service password was not accepted by the device.",
             )
             return
-        if "exception_code=4" in error:
+        if password_required:
             self._prompt_service_password()
 
-    def on_device_write_succeeded(self, message: str) -> None:
-        if not message.startswith("pass_static:") or self._pending_service_password is None:
+    def on_device_write_succeeded(self, register_name: str) -> None:
+        if register_name != "pass_static" or self._pending_service_password is None:
             return
         password = self._pending_service_password
         self._pending_service_password = None

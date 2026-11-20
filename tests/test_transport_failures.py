@@ -25,7 +25,7 @@ class _FailingDevice:
     def __init__(self) -> None:
         self.calls = 0
 
-    def get_all_input_registers(self, *, raw=False):
+    def read_snapshot(self, *, raw=False):
         self.calls += 1
         raise OSError("USB device was unplugged")
 
@@ -41,10 +41,7 @@ class _SnapshotDevice:
         self.writes: list[tuple[str, float, bool]] = []
 
     def read_snapshot(self, *, raw=False):
-        return {"live": 42}
-
-    def get_all_input_registers(self, *, raw=False):
-        raise AssertionError("block snapshot should be used")
+        return {"hardware_version": 0x0101, "live": 42}
 
     def get_all_holding_registers(self, *, raw=False):
         return {"setting": 1}
@@ -96,12 +93,9 @@ class TransportFailureTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "register limits 10..20"):
             device.encode(21, spec, raw_mode=True)
 
-    def test_snapshot_polling_retains_static_input_values(self) -> None:
+    def test_snapshot_polling_emits_the_block_read(self) -> None:
         device = _SnapshotDevice()
-        worker = DevicePollingThread(
-            device,
-            initial_input_values={"hardware_version": 0x0101, "live": 0},
-        )
+        worker = DevicePollingThread(device)
         updates: list[dict] = []
         worker.input_registers_updated.connect(lambda _elapsed, values: updates.append(values))
         worker._t0 = time.perf_counter()

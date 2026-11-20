@@ -1,311 +1,265 @@
+from __future__ import annotations
+
+import logging
 import threading
+from collections.abc import Callable
 from contextlib import contextmanager
 from typing import Any
 
 from pymodbus.client import ModbusSerialClient, ModbusTcpClient
+from pymodbus.exceptions import ModbusException
 
 from nlab_modbus.core.enums import DeviceType
-from nlab_modbus.core.register_specs import RegisterSpec, RegisterType
+from nlab_modbus.core.errors import DeviceUnavailable, IllegalDataAddress, exception_response
+from nlab_modbus.core.identity import DeviceIdentity
+from nlab_modbus.core.register_specs import (
+    RegisterSpec,
+    RegisterType,
+    build_register_index,
+    decode_register_block,
+    decode_register_value,
+    encode_register_value,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _make_getter(name: str, spec: RegisterSpec) -> Callable:
+    def getter(self, *, raw: bool = False):
+        return self.read(name, raw=raw)
+
+    getter.__name__ = f"get_{name}"
+    getter.__doc__ = f"Read {name}: {spec.description}" + (f" [{spec.unit}]" if spec.unit else "")
+    return getter
+
+
+def _make_setter(name: str, spec: RegisterSpec) -> Callable:
+    def setter(self, value, *, raw: bool = False) -> None:
+        self.write(name, value, raw=raw)
+
+    setter.__name__ = f"set_{name}"
+    setter.__doc__ = f"Write {name}: {spec.description}" + (f" [{spec.unit}]" if spec.unit else "")
+    return setter
 
 
 class BaseModbusDevice:
-    """Protocol-agnostic base for all three instrument types.
+    """Register-map driven access to one board on a Modbus RTU transport.
 
-    Subclasses supply REGISTER_MAP (a dict of name → RegisterSpec) and
-    optionally READOUT_START / READOUT_STOP for fast block reads.  This class
-    provides the codec (encode/decode), the locking model, and high-level
-    read/write helpers; it never owns a thread or drives polling.
+    Subclasses only declare ``REGISTER_MAP`` and ``DEVICE_TYPE``. For every
+    register a ``get_<name>()`` method (and ``set_<name>()`` for holding
+    registers) is generated from the map, so the accessors always match it.
 
-    Concurrency model
-    -----------------
-    bus_lock is an RLock that serializes every Modbus transaction on a shared
-    transport.  DeviceManager injects the same lock instance into every device
-    that shares a serial port or TCP socket, so frames from different devices
-    never interleave.  The RLock (not Lock) allows composite operations such as
-    bus_transaction() to hold the lock while calling lower-level primitives.
+    Reads of whole tables use one FC04/FC03 transaction. Older firmware has
+    shorter tables than the map; the implemented length is detected on first
+    use and only those registers are read.
+
+    ``bus_lock`` serialises transactions; DeviceManager replaces it with the
+    lock shared by every device on the same serial port or TCP endpoint.
     """
 
     REGISTER_MAP: dict[str, RegisterSpec] = {}
+    DEVICE_TYPE: DeviceType | None = None
+    REGISTER_VERSION: tuple[int, int] | None = None
+
+    _register_index: dict = {}
+    _map_sizes: dict[RegisterType, int] = {}
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        cls._register_index = build_register_index(cls.REGISTER_MAP)
+        cls._map_sizes = {
+            reg_type: 1 + max((s.address + s.count - 1 for s in cls.REGISTER_MAP.values() if s.reg_type is reg_type), default=-1)
+            for reg_type in RegisterType
+        }
+        for name, spec in cls.REGISTER_MAP.items():
+            if f"get_{name}" not in cls.__dict__:
+                setattr(cls, f"get_{name}", _make_getter(name, spec))
+            if spec.writable and f"set_{name}" not in cls.__dict__:
+                setattr(cls, f"set_{name}", _make_setter(name, spec))
 
     def __init__(self, client: ModbusSerialClient | ModbusTcpClient, device_id: int):
         self.client = client
         self.device_id = device_id
-        self.device_type: DeviceType | None = None
-        # Per-bus lock. Defaults to a private RLock so a standalone device
-        # (constructed without a manager) is still internally consistent.
-        # DeviceManager overwrites this with the lock shared by every device
-        # on the same transport, so all traffic on one RS485 bus / one TCP
-        # socket is serialized. RLock (not Lock) so composite operations that
-        # hold the lock can still call the primitives without self-deadlock.
+        self.device_type: DeviceType | None = self.DEVICE_TYPE
         self.bus_lock: threading.RLock = threading.RLock()
+        self._table_sizes: dict[RegisterType, int] = {}
 
-    # ---- concurrency control -------------------------------------------
+    # ---- transactions (the only code that touches the wire) ------------
+
+    def _execute(self, what: str, request: Callable[[], Any]) -> Any:
+        with self.bus_lock:
+            try:
+                result = request()
+            except (ModbusException, OSError) as exc:
+                raise DeviceUnavailable(f"{self.connection_info()}: no response to {what}: {exc}") from exc
+        if result.isError():
+            code = getattr(result, "exception_code", None)
+            if code is None:
+                raise DeviceUnavailable(f"{self.connection_info()}: {what} failed: {result}")
+            raise exception_response(code, f"{self.connection_info()}: {what} rejected")
+        return result
+
+    def read_block(self, reg_type: RegisterType, address: int, count: int) -> list[int]:
+        """Read ``count`` raw words starting at ``address`` in one transaction."""
+        what = f"{reg_type.value} read address={address} count={count}"
+        if reg_type is RegisterType.INPUT:
+            read = self.client.read_input_registers
+        else:
+            read = self.client.read_holding_registers
+        result = self._execute(what, lambda: read(address=address, count=count, device_id=self.device_id))
+        return list(result.registers)
+
+    def read_raw_block(self, address: int, count: int = 1) -> list[int]:
+        """Read raw input-register words (kept for API compatibility)."""
+        return self.read_block(RegisterType.INPUT, address, count)
+
+    def write_words(self, address: int, words: list[int]) -> None:
+        """Write raw words to holding registers (FC06 for one word, FC16 otherwise)."""
+        what = f"write address={address} count={len(words)}"
+        if len(words) == 1:
+            self._execute(what, lambda: self.client.write_register(address=address, value=int(words[0]), device_id=self.device_id))
+        else:
+            self._execute(what, lambda: self.client.write_registers(address=address, values=[int(w) for w in words], device_id=self.device_id))
 
     @contextmanager
     def bus_transaction(self):
-        """Hold the bus lock across multiple primitive transactions.
-
-        Use when a sequence of reads/writes must be coherent w.r.t. other
-        devices on the same bus (e.g. an atomic snapshot, or read-modify-write
-        of a holding register). Without this, individual frames are still
-        atomic but another device may transmit between your transactions.
-
-        Reentrant: the primitives below take the same lock, so nesting is safe.
-        """
+        """Hold the bus lock across several transactions (reentrant)."""
         with self.bus_lock:
             yield self
 
-    # ---- high-level read/write -----------------------------------------
+    # ---- table layout ----------------------------------------------------
+
+    def table_size(self, reg_type: RegisterType) -> int:
+        """Number of registers of ``reg_type`` the connected firmware implements."""
+        if reg_type not in self._table_sizes:
+            self._table_sizes[reg_type] = self._detect_table_size(reg_type)
+        return self._table_sizes[reg_type]
+
+    def _detect_table_size(self, reg_type: RegisterType) -> int:
+        size = self._map_sizes.get(reg_type, 0)
+        if size == 0:
+            return 0
+        with self.bus_lock:
+            if self._register_exists(reg_type, size - 1):
+                return size
+            # Older firmware: binary search for the last implemented address.
+            low, high = 1, size - 1
+            while low < high:
+                middle = (low + high + 1) // 2
+                if self._register_exists(reg_type, middle - 1):
+                    low = middle
+                else:
+                    high = middle - 1
+        logger.info("%s implements %d of %d %s registers (older firmware)", self.connection_info(), low, size, reg_type.value)
+        return low
+
+    def _register_exists(self, reg_type: RegisterType, address: int) -> bool:
+        try:
+            self.read_block(reg_type, address, 1)
+        except IllegalDataAddress:
+            return False
+        return True
+
+    def available_registers(self, reg_type: RegisterType | None = None) -> dict[str, RegisterSpec]:
+        """Map entries implemented by the connected firmware (detects table sizes)."""
+        return {
+            name: spec
+            for name, spec in self.REGISTER_MAP.items()
+            if (reg_type is None or spec.reg_type is reg_type) and spec.address < self.table_size(spec.reg_type)
+        }
+
+    # ---- named access ---------------------------------------------------
 
     def read(self, name: str, *, raw: bool = False) -> Any:
-        """Read one named register and return its decoded value.
-
-        If *raw* is True, return the sign-extended integer as stored in the
-        register (no scaling).
-        """
+        """Read one named register; ``raw=True`` returns the unscaled count."""
         spec = self._get_spec(name)
-        raw_regs = self.read_raw(name)
-        return self.decode(raw_regs, spec, raw_mode=raw)
+        words = self.read_block(spec.reg_type, spec.address, spec.count)
+        return decode_register_value(words[0], spec, raw=raw)
 
     def write(self, name: str, value: Any, *, raw: bool = False) -> None:
-        """Encode a value and write it to the named holding register.
-
-        If *raw* is True, *value* is treated as a raw register integer —
-        scaling is skipped.
-        """
+        """Write one holding register. Values outside the firmware limits raise ValueError."""
         spec = self._get_spec(name)
-        raw_regs = self.encode(value, spec, raw_mode=raw)
-        self.write_raw(name, raw_regs)
+        if not spec.writable:
+            raise ValueError(f"Cannot write {name!r}: input registers are read-only")
+        self.write_words(spec.address, [encode_register_value(value, spec, raw=raw)])
 
-    # ---- primitive transactions (the only methods that touch the wire) --
+    def read_registers(self, reg_type: RegisterType, *, raw: bool = False) -> dict[str, Any]:
+        """Read every implemented register of one type in a single transaction."""
+        count = self.table_size(reg_type)
+        if count == 0:
+            return {}
+        words = self.read_block(reg_type, 0, count)
+        return decode_register_block(
+            words, start_address=0, register_type=reg_type, register_index=self._register_index, raw=raw
+        )
 
-    def read_raw(self, name: str) -> list[int]:
-        """Issue one Modbus read and return the raw 16-bit register word(s).
+    def read_snapshot(self, *, raw: bool = False) -> dict[str, Any]:
+        """All implemented input registers, read in one FC04 transaction."""
+        return self.read_registers(RegisterType.INPUT, raw=raw)
 
-        Selects FC04 (read input registers) or FC03 (read holding registers)
-        based on the register spec. Raises RuntimeError on a Modbus error
-        response.
-        """
-        spec = self._get_spec(name)
+    def get_all_input_registers(self, *, raw: bool = False) -> dict[str, Any]:
+        return self.read_registers(RegisterType.INPUT, raw=raw)
 
-        with self.bus_lock:
-            if spec.reg_type == RegisterType.INPUT:
-                result = self.client.read_input_registers(
-                    address=spec.address,
-                    count=spec.count,
-                    device_id=self.device_id,
-                )
-            elif spec.reg_type == RegisterType.HOLDING:
-                result = self.client.read_holding_registers(
-                    address=spec.address,
-                    count=spec.count,
-                    device_id=self.device_id,
-                )
-            else:
-                raise ValueError(f"Unsupported register type for {name!r}: {spec.reg_type}")
+    def get_all_holding_registers(self, *, raw: bool = False) -> dict[str, Any]:
+        return self.read_registers(RegisterType.HOLDING, raw=raw)
 
-        if result.isError():
-            raise RuntimeError(f"Failed to read {name!r}: {result}")
+    def identify(self) -> DeviceIdentity:
+        """Read the identity words (and, on newer firmware, register version and serial)."""
+        hardware, firmware = self.read_block(RegisterType.INPUT, 0, 2)
+        version_spec = self.REGISTER_MAP.get("modbus_reg_version")
+        if version_spec is None or version_spec.address + 2 >= self.table_size(RegisterType.INPUT):
+            return DeviceIdentity.from_words(hardware, firmware)
+        version, serial_hi, serial_lo = self.read_block(RegisterType.INPUT, version_spec.address, 3)
+        return DeviceIdentity.from_words(hardware, firmware, version, serial_hi, serial_lo)
 
-        return result.registers
-
-    def read_raw_block(self, address: int, count: int = 1):
-        """Read a contiguous range of input registers in a single FC04 transaction.
-
-        Used by device subclasses to snapshot many registers at once, which is
-        significantly faster than individual reads on a shared RS-485 bus.
-        Raises RuntimeError on a Modbus error response, consistent with
-        :meth:`read_raw`.
-        """
-        with self.bus_lock:
-            result_raw = self.client.read_input_registers(
-                address=address,
-                count=count,
-                device_id=self.device_id,
-            )
-        if result_raw.isError():
-            raise RuntimeError(
-                f"Failed to read input register block address={address} count={count}: "
-                f"{result_raw}"
-            )
-        return result_raw.registers
-
-    def write_raw(self, name: str, registers: list[int]) -> None:
-        """Write raw 16-bit word(s) to a named holding register.
-
-        Uses FC06 (write single register) when count == 1 and FC16
-        (write multiple registers) otherwise.  Raises ValueError if the
-        register is not writable or the word count doesn't match the spec.
-        """
-        spec = self._get_spec(name)
-
-        if spec.reg_type != RegisterType.HOLDING:
-            raise ValueError(f"Cannot write {name!r}: only holding registers are writable in Modbus")
-
-        if len(registers) != spec.count:
-            raise ValueError(f"Cannot write {name!r}: expected {spec.count} register(s), got {len(registers)}")
-
-        with self.bus_lock:
-            if spec.count == 1:
-                result = self.client.write_register(
-                    address=spec.address,
-                    value=int(registers[0]),
-                    device_id=self.device_id,
-                )
-            else:
-                result = self.client.write_registers(
-                    address=spec.address,
-                    values=[int(v) for v in registers],
-                    device_id=self.device_id,
-                )
-
-        if result.isError():
-            raise RuntimeError(f"Failed to write {name!r}: {result}")
-
-    # ---- codec ----------------------------------------------------------
+    # ---- codec (compatibility wrappers) ------------------------------------
 
     def decode(self, raw: list[int], spec: RegisterSpec, raw_mode: bool = False) -> Any:
-        """Convert raw Modbus word(s) to a Python value.
-
-        int16 values transmitted as unsigned 16-bit words are sign-extended
-        before the scale factor is applied. bool registers return a Python bool.
-
-        If *raw_mode* is True, sign-extension is still applied but scaling is
-        skipped — the value is returned as the firmware stores it.
-        """
-        if spec.dtype == "uint16":
-            value = raw[0]
-            if raw_mode:
-                return value
-            return value if spec.scale == 1.0 else value * spec.scale
-
-        if spec.dtype == "int16":
-            value = raw[0]
-            if value >= 0x8000:
-                value -= 0x10000
-            if raw_mode:
-                return value
-            return value if spec.scale == 1.0 else value * spec.scale
-
-        if spec.dtype == "bool":
-            return bool(raw[0])
-
-        raise NotImplementedError(f"Unsupported dtype for decoding: {spec.dtype}")
+        return decode_register_value(raw[0], spec, raw=raw_mode)
 
     def encode(self, value: Any, spec: RegisterSpec, raw_mode: bool = False) -> list[int]:
-        """Convert a Python value to raw Modbus 16-bit word(s).
-
-        If *raw_mode* is False (default), applies the inverse scale and rounds
-        to the nearest integer count.  If True, *value* is treated as a raw
-        register integer and scaling is skipped.
-
-        In both modes the value is range-checked and negative int16 values are
-        wrapped into their unsigned 16-bit two's complement form.
-        """
-        if spec.dtype == "uint16":
-            raw_value = int(value) if raw_mode else int(round(value / spec.scale))
-            if not 0 <= raw_value <= 0xFFFF:
-                raise ValueError(f"Encoded uint16 value out of range: {raw_value}")
-            if not spec.min <= raw_value <= spec.max:
-                raise ValueError(
-                    f"Encoded value {raw_value} is outside the register limits "
-                    f"{spec.min}..{spec.max}"
-                )
-            return [raw_value]
-
-        if spec.dtype == "int16":
-            raw_value = int(value) if raw_mode else int(round(value / spec.scale))
-            if not -0x8000 <= raw_value <= 0x7FFF:
-                raise ValueError(f"Encoded int16 value out of range: {raw_value}")
-            if not spec.min <= raw_value <= spec.max:
-                raise ValueError(
-                    f"Encoded value {raw_value} is outside the register limits "
-                    f"{spec.min}..{spec.max}"
-                )
-            if raw_value < 0:
-                raw_value += 0x10000
-            return [raw_value]
-
-        if spec.dtype == "bool":
-            raw_value = 1 if value else 0
-            if not spec.min <= raw_value <= spec.max:
-                raise ValueError(
-                    f"Encoded value {raw_value} is outside the register limits "
-                    f"{spec.min}..{spec.max}"
-                )
-            return [raw_value]
-
-        raise NotImplementedError(f"Unsupported dtype for encoding: {spec.dtype}")
+        return [encode_register_value(value, spec, raw=raw_mode)]
 
     def _get_spec(self, name: str) -> RegisterSpec:
-        """Return the RegisterSpec for name, or raise a descriptive KeyError."""
         try:
             return self.REGISTER_MAP[name]
         except KeyError as exc:
             raise KeyError(f"Unknown register {name!r}") from exc
 
+    def get_register_address(self, name: str) -> int:
+        return self._get_spec(name).address
+
     # ---- connection -----------------------------------------------------
 
     def connect(self) -> None:
-        """Open connection to the Modbus device."""
         with self.bus_lock:
             if not self.client.connect():
-                raise ConnectionError("Could not connect to Modbus device")
+                raise DeviceUnavailable(f"Could not connect to {self.connection_info()}")
 
     def disconnect(self) -> None:
-        """Close connection to the Modbus device."""
         with self.bus_lock:
             self.client.close()
 
-    def close(self) -> None:
-        """Alias for disconnect(), useful because PyModbus uses close()."""
-        self.disconnect()
+    close = disconnect
 
     def connection_info(self) -> str:
-        """Human-readable connection string used as the tab label in the GUI."""
+        """Human-readable endpoint, e.g. ``serial://COM3:1`` or ``192.168.10.128:5001:1``."""
         if isinstance(self.client, ModbusSerialClient):
             return f"serial://{self.client.comm_params.host}:{self.device_id}"
         if isinstance(self.client, ModbusTcpClient):
-            return f"{self.client.comm_params.host}:{self.client.comm_params.port}:{self.device_id}"
-        return f"unknown://{type(self.client).__name__}"
-
-    # ---- composite reads (issue many transactions) ---------------------
-
-    def get_all_holding_registers(self, *, raw: bool = False) -> dict:
-        """Read holding values without truncating scaled engineering fractions."""
-        result = {}
-        with self.bus_transaction():
-            for reg_name, spec in self.REGISTER_MAP.items():
-                if spec.reg_type == RegisterType.HOLDING:
-                    result[reg_name] = self.read(reg_name, raw=raw)
-        return result
-
-    def get_all_input_registers(self, *, raw: bool = False) -> dict:
-        """All input register values, coherent w.r.t. other bus traffic."""
-        result = {}
-        with self.bus_transaction():
-            for reg_name, spec in self.REGISTER_MAP.items():
-                if spec.reg_type == RegisterType.INPUT:
-                    result[reg_name] = self.read(reg_name, raw=raw)
-        return result
+            params = self.client.comm_params
+            return f"{params.host}:{params.port}:{self.device_id}"
+        return f"{type(self.client).__name__}:{self.device_id}"
 
     def get_status(self) -> str:
-        """Return a formatted string of all register values for debugging."""
-        lines = []
+        """Formatted dump of all implemented registers, for debugging."""
         with self.bus_transaction():
-            if self.device_type is not None:
-                lines.append(f"Device {self.device_type.name}: {self.connection_info()}")
-            lines.append("== Status of holding registers ==")
-            for i, (key, value) in enumerate(self.get_all_holding_registers().items(), start=1):
-                lines.append(f"{i}. {key}: {value}")
-
-            lines.append("")
-            lines.append("== Status of input registers ==")
-            for i, (key, value) in enumerate(self.get_all_input_registers().items(), start=1):
-                lines.append(f"{i}. {key}: {value}")
-
+            holding = self.get_all_holding_registers()
+            inputs = self.get_all_input_registers()
+        lines = [f"Device {self.device_type.name if self.device_type else '?'}: {self.connection_info()}"]
+        for title, values in (("holding", holding), ("input", inputs)):
+            lines.append(f"== {title} registers ==")
+            for name, value in values.items():
+                unit = self.REGISTER_MAP[name].unit or ""
+                lines.append(f"{name}: {value} {unit}".rstrip())
         return "\n".join(lines) + "\n"
-
-    def get_register_address(self, name: str) -> int:
-        """Return the Modbus address of a named register."""
-        return self.REGISTER_MAP[name].address
