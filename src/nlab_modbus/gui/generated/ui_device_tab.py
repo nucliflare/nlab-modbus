@@ -142,7 +142,6 @@ class Ui_DeviceTab(object):
         self.label.setText(QCoreApplication.translate("DeviceTab", u"Type", None))
         self.label_3.setText(QCoreApplication.translate("DeviceTab", u"Input (ms)", None))
         self.tab_disconnect_btn.setText(QCoreApplication.translate("DeviceTab", u"Disconnect", None))
-        self.tab_disconnect_btn.setStyleSheet(QCoreApplication.translate("DeviceTab", u"background-color: #f8d7da; color: #721c24;", None))
         self.groupBox.setTitle(QCoreApplication.translate("DeviceTab", u"Holding registers (R/W)", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("DeviceTab", u"Input registers (R)", None))
     # retranslateUi

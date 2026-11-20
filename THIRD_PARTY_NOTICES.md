@@ -112,3 +112,10 @@
 | websocket-client          | 1.9.0       | Apache Software License                            | https://github.com/websocket-client/websocket-client.git             | WebSocket client for Python with low level API options                                                     |
 | widgetsnbextension        | 4.0.15      | BSD License                                        | http://jupyter.org                                                   | Jupyter interactive widgets for Jupyter Notebook                                                           |
 | zeroconf                  | 0.149.16    | LGPL-2.1-or-later                                  | https://github.com/python-zeroconf/python-zeroconf                   | A pure python implementation of multicast DNS service discovery                                            |
+
+## Bundled assets
+
+| Asset | License | Location |
+|---|---|---|
+| Roboto (Regular, Medium, Bold) | SIL Open Font License 1.1 | `src/nlab_modbus/gui/resources/fonts/` (licence text in `OFL.txt`) |
+| Eastern Wall Technologies marks | Brand assets of Eastern Wall Technologies, not covered by this project's MIT licence | `src/nlab_modbus/gui/resources/brand/`, `ewt.ico`, `ewt.png` |

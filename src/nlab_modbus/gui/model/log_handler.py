@@ -90,7 +90,7 @@ class LogDialog(QDialog):
 
     def __init__(self, log_handler: QtLogHandler, debug_mode: bool = False, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Application Log")
+        self.setWindowTitle("Application log")
         self.resize(800, 500)
 
         self._log_handler = log_handler

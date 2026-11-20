@@ -53,6 +53,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "nlab_modbus.data" = ["*.csv"]
+"nlab_modbus.gui" = ["resources/*.ico", "resources/*.png", "resources/brand/*", "resources/fonts/*", "resources/icons/*"]
 
 [tool.bumpversion]
 current_version = "0.2.7"

@@ -105,14 +105,14 @@ DEVICE_TAB_HELP = {
         "Holding registers",
         "Device settings. Double-click a value to change it; it is checked against the firmware limits "
         "before it is written.",
-        "Grey rows need the service password (<i>Connection → Service Mode</i>). "
+        "Grey rows need the service password (<i>Connection → Service mode</i>). "
         "Settings saved to EEPROM survive a power cycle.",
     ),
     "holding_table_view": _html(
         "Holding registers",
         "Device settings. Double-click a value to change it; it is checked against the firmware limits "
         "before it is written.",
-        "Grey rows need the service password (<i>Connection → Service Mode</i>). "
+        "Grey rows need the service password (<i>Connection → Service mode</i>). "
         "Click a row in help mode for that register's details.",
     ),
     "groupBox_2": _html("Input registers", "Live measurements, read every input interval."),
@@ -140,7 +140,7 @@ HELP_MODE_HINT = "Help mode: click any element to see what it does (Esc to cance
 
 STATUS_BAR_HELP = _html(
     "Status bar",
-    "Latest message. Double-click for the full log; <i>View → Debug Mode</i> adds details.",
+    "Latest message. Double-click for the full log; <i>View → Debug mode</i> adds details.",
 )
 
 

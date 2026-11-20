@@ -17,6 +17,7 @@ from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate
 
 from nlab_modbus.core.register_specs import RegisterSpec, RegisterType, decode_register_value, to_raw
+from nlab_modbus.gui import theme
 from nlab_modbus.gui.help import COLUMN_HELP, register_help
 
 _DISPLAY = Qt.ItemDataRole.DisplayRole
@@ -198,8 +199,9 @@ class ProtectedRowDelegate(QStyledItemDelegate):
             return
         row = model._rows[index.row()]
         if row.password_protected and not model._service_mode and option.state & QStyle.StateFlag.State_Selected:
-            option.palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.Highlight, QColor(200, 215, 230))
-            option.palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.HighlightedText, QColor(120, 120, 120))
+            colors = theme.colors()
+            option.palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.Highlight, QColor(colors.bg_tint))
+            option.palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.HighlightedText, QColor(colors.text_disabled))
 
 
 class HoldingRegisterTableModel(_RegisterTableModel):
@@ -218,7 +220,7 @@ class HoldingRegisterTableModel(_RegisterTableModel):
         if role == Qt.ItemDataRole.ForegroundRole and index.isValid():
             row = self._rows[index.row()]
             if row.password_protected and not self._service_mode:
-                return QColor(160, 160, 160)
+                return QColor(theme.colors().text_disabled)
         return super().data(index, role)
 
     def set_service_mode(self, enabled: bool) -> None:

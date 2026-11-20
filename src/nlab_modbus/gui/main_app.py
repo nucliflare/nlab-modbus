@@ -7,11 +7,12 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QEventLoop, Qt
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QColor, QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 
 from nlab_modbus import __version__
-from nlab_modbus.gui.controller.main_controller import ModbusMainWindow
+from nlab_modbus.gui import theme
+from nlab_modbus.gui.controller.main_controller import PRODUCT_NAME, ModbusMainWindow
 from nlab_modbus.gui.model.log_handler import QtLogHandler
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -36,7 +37,7 @@ def _find_icon() -> Path:
 
 
 def _parse_arguments(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
-    parser = argparse.ArgumentParser(description="nlab Modbus Monitor GUI")
+    parser = argparse.ArgumentParser(description=f"{PRODUCT_NAME} GUI")
     parser.add_argument(
         "--baudrate", type=int, default=None,
         metavar="BAUD",
@@ -70,11 +71,12 @@ def main() -> int:
         myappid = f"EWT.Modbus.Monitor.{__version__}"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     app = QApplication([sys.argv[0], *qt_args])
-    app.setApplicationName("NLab Modbus Monitor")
+    app.setApplicationName(PRODUCT_NAME)
     app.setApplicationVersion(__version__)
     app.setOrganizationName("EWT")
     app.setOrganizationDomain("ewt.local")
     app.setWindowIcon(QIcon(str(_find_icon())))
+    applied = theme.apply_application_theme(app)
 
     log_handler = QtLogHandler()
     root_logger = logging.getLogger("nlab_modbus")
@@ -88,7 +90,7 @@ def main() -> int:
     console_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(name)s: %(message)s", datefmt="%H:%M:%S"))
     root_logger.addHandler(console_handler)
 
-    logging.getLogger("nlab_modbus").info("Starting nlab-modbus-gui v%s", __version__)
+    logging.getLogger("nlab_modbus").info("Starting nlab-modbus-gui v%s (%s theme)", __version__, applied.mode.value)
 
     splash = _show_splash()
     _update_splash(splash, "Preparing the main window…")
@@ -102,7 +104,7 @@ def main() -> int:
     except Exception as exc:
         splash.close()
         logging.getLogger("nlab_modbus").exception("Application startup failed")
-        QMessageBox.critical(None, "Startup Failed", str(exc))
+        QMessageBox.critical(None, "Startup failed", str(exc))
         return 1
 
     return app.exec()
@@ -116,39 +118,12 @@ def _finish_startup(splash: QSplashScreen, window: ModbusMainWindow) -> None:
 
 
 def _show_splash() -> QSplashScreen:
-    return _create_splash("Launching Modbus Monitor", "Launching application")
+    return _create_splash(PRODUCT_NAME, "Launching application")
 
 
 def _create_splash(title: str, message: str) -> QSplashScreen:
-    """Create the same launch splash design used by nlab-community."""
-    pixmap = QPixmap(520, 320)
-    pixmap.fill(QColor("#20252b"))
-    logo_path = _find_resource("ewt.png")
-    logo = QPixmap(str(logo_path)) if logo_path is not None else QPixmap()
-    painter = QPainter(pixmap)
-    try:
-        if logo.isNull():
-            painter.setPen(QColor("#e9f0f6"))
-            painter.setFont(QFont("Sans Serif", 22, QFont.Weight.Bold))
-            painter.drawText(
-                0,
-                35,
-                pixmap.width(),
-                210,
-                Qt.AlignmentFlag.AlignCenter,
-                "NLab Modbus Monitor",
-            )
-        else:
-            scaled = logo.scaled(
-                220,
-                220,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            painter.drawPixmap((pixmap.width() - scaled.width()) // 2, 24, scaled)
-    finally:
-        painter.end()
-    splash = QSplashScreen(pixmap, Qt.WindowType.WindowStaysOnTopHint)
+    """EWT lockup splash in the active theme (same design as nlab-community)."""
+    splash = QSplashScreen(theme.splash_pixmap(title), Qt.WindowType.WindowStaysOnTopHint)
     splash.setWindowTitle(title)
     splash.show()
     _update_splash(splash, message)
@@ -159,7 +134,7 @@ def _update_splash(splash: QSplashScreen, message: str) -> None:
     splash.showMessage(
         message,
         Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
-        QColor("#e9f0f6"),
+        QColor(theme.colors().text_muted),
     )
     QApplication.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
 

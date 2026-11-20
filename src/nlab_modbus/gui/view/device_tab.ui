@@ -88,9 +88,6 @@
           <property name="text">
            <string>Disconnect</string>
           </property>
-          <property name="styleSheet">
-           <string>background-color: #f8d7da; color: #721c24;</string>
-          </property>
          </widget>
         </item>
        </layout>

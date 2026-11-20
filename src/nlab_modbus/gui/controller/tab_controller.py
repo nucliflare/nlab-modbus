@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QHeaderView, QInputDialog, QMessageBox, QWidget
 
 from nlab_modbus.core.base_modbus_device import BaseModbusDevice
 from nlab_modbus.core.transport import GATEWAY_BAUDRATE
+from nlab_modbus.gui import theme
 from nlab_modbus.gui.generated.ui_device_tab import Ui_DeviceTab
 from nlab_modbus.gui.help import DEVICE_TAB_HELP, apply_help
 from nlab_modbus.gui.model.register_tables import (
@@ -28,8 +29,6 @@ logger = logging.getLogger(__name__)
 
 HISTORY = 1000  # samples kept per plotted register
 PLOT_REFRESH_MS = 100  # redraw at most 10x per second, and only while visible
-# Colour-blind safe palette (Okabe-Ito), cycled for plotted registers.
-PALETTE = ("#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7", "#56B4E9", "#000000", "#F0E442")
 
 
 class DeviceTab(QWidget):
@@ -57,6 +56,7 @@ class DeviceTab(QWidget):
         self.ui = Ui_DeviceTab()
         self.ui.setupUi(self)
         apply_help(self.ui, DEVICE_TAB_HELP)
+        theme.set_role(self.ui.tab_disconnect_btn, "disconnect")
         self.ui.type_edit.setText(device.device_type.name)
 
         self.time_buffer = NumpyRingBuffer(HISTORY)
@@ -108,14 +108,15 @@ class DeviceTab(QWidget):
         layout = pg.GraphicsLayout()
         layout.setContentsMargins(10, 10, 10, 10)
         self.ui.input_plot.setCentralItem(layout)
-        self.ui.input_plot.setBackground("#ffffff")
+        colors = theme.colors()
+        self.ui.input_plot.setBackground(colors.plot_background)
         layout.addLabel("Input registers", angle=-90)
         self.main_plot = layout.addPlot()
         self.main_plot.showGrid(x=True, y=True, alpha=0.2)
         self.main_plot.setClipToView(True)
         self.main_plot.setDownsampling(auto=True, mode="peak")
         self.main_plot.addLegend(offset=(10, 10))
-        self.main_plot.getViewBox().setBorder(pg.mkPen("#808080"))
+        self.main_plot.getViewBox().setBorder(pg.mkPen(colors.plot_border))
         layout.nextRow()
         layout.addLabel("Time [s]", col=1)
 
@@ -193,7 +194,8 @@ class DeviceTab(QWidget):
     def plot_enabled_changed(self, register_name: str, enabled: bool) -> None:
         item = self.plot_items.get(register_name)
         if item is None and enabled:
-            color = PALETTE[len(self.plot_items) % len(PALETTE)]
+            series = theme.colors().series
+            color = series[len(self.plot_items) % len(series)]
             unit = self.device.REGISTER_MAP[register_name].unit
             label = f"{register_name} [{unit}]" if unit else register_name
             item = self.main_plot.plot([], [], pen=pg.mkPen(color, width=1), name=label)
@@ -228,7 +230,7 @@ class DeviceTab(QWidget):
         main_widget.forget_available_device(device)
         QMessageBox.warning(
             main_widget,
-            "Device Disconnected",
+            "Device disconnected",
             f"{label} stopped responding and was disconnected.\n\nReconnect the hardware, then scan again.",
         )
 
@@ -244,7 +246,7 @@ class DeviceTab(QWidget):
         self.set_service_mode(accepted)
         self.main_widget.update_service_mode_action()
         if not accepted:
-            QMessageBox.warning(self, "Service Password Rejected", "The device rejected the service password and stays locked.")
+            QMessageBox.warning(self, "Service password rejected", "The device rejected the service password and stays locked.")
 
     def on_transport_configuration_changed(self, register_name: str, raw_value: int) -> None:
         """The board no longer answers on this link after an rs485_* change: close and rescan."""
@@ -266,7 +268,7 @@ class DeviceTab(QWidget):
         main_widget.rescan("remote" if remote else "local")
         QMessageBox.information(
             main_widget,
-            "Connection Settings Changed",
+            "Connection settings changed",
             f"{register_name} was changed on {label}.\n{detail}\n\nThe connection was closed and a new scan started.",
         )
 
@@ -282,7 +284,7 @@ class DeviceTab(QWidget):
     def request_service_mode(self, prompt: str = "Enter the service password:") -> None:
         """Ask for the password and let the polling worker verify it on the device."""
         self.main_widget.action_service_mode.setChecked(False)
-        password, ok = QInputDialog.getInt(self, "Service Password", prompt, 0, -32767, 32767)
+        password, ok = QInputDialog.getInt(self, "Service password", prompt, 0, -32767, 32767)
         if ok:
             self.polling_thread.enqueue_service_unlock(password)
 
@@ -317,7 +319,7 @@ class DeviceTab(QWidget):
             )
         answer = QMessageBox.question(
             self,
-            "Change RS-485 Settings",
+            "Change RS-485 settings",
             f"{text}\n\nWrite {register_name} = {raw_value}?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,

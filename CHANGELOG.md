@@ -7,6 +7,22 @@ All notable changes to this project are documented here. The project follows
 
 ### Added
 
+- The GUI follows the Eastern Wall Technologies design system, using the same
+  theme as nlab-community:
+  - **Themes:** **View → Theme** offers EWT light (default), EWT dark or
+    Classic (the previous look). The choice applies at the next start, and
+    `NLAB_THEME` overrides it for one launch.
+  - **Look:** brand ink, blue and cyan on flat surfaces, Roboto (SIL OFL)
+    for the GUI, brand-blue Connect buttons, a red Disconnect, plot colours
+    per theme, and a splash with the EWT colour lockup.
+  - **Text:** the product is named "nuclearLab Modbus Monitor", and menus
+    and dialogs use sentence case.
+  - **Implementation:** every colour comes from `nlab_modbus.gui.theme`; the
+    .ui files no longer carry inline stylesheets.
+  - **Tests:** contrast (WCAG AA for text, 3:1 for controls and plot lines),
+    brand values and stylesheet parsing are tested.
+  - **Assets:** fonts, brand marks and icons ship as package data. The unused
+    compiled resource module was removed.
 - Help mode: **F1** or **Help → Help mode**, then click any control, table
   row or column header for a short explanation. Register rows explain their
   limits, default and flags. A test fails if a widget in the .ui files has no

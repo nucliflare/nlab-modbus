@@ -5,8 +5,9 @@ from pathlib import Path
 from typing import Any, cast
 
 from PySide6.QtCore import QSettings, QTimer, Signal
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import (
+    QComboBox,
     QMainWindow,
     QMessageBox,
     QWhatsThis,
@@ -25,11 +26,14 @@ from nlab_modbus.gui.controller.io_worker import DeviceIoThread
 from nlab_modbus.gui.controller.scan_worker import DeviceScanThread
 from nlab_modbus.gui.controller.tab_controller import DeviceTab
 from nlab_modbus.gui.generated.ui_main_window import Ui_MainWindow
+from nlab_modbus.gui import theme
 from nlab_modbus.gui.help import HELP_MODE_HINT, MAIN_WINDOW_HELP, STATUS_BAR_HELP, apply_help
 from nlab_modbus.gui.model.log_handler import LogStatusBar, QtLogHandler
 from nlab_modbus.services.manager import DeviceManager
 
 logger = logging.getLogger(__name__)
+
+PRODUCT_NAME = "nuclearLab Modbus Monitor"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -59,6 +63,7 @@ class ModbusMainWindow(QMainWindow):
         self._log_handler = log_handler
 
         self.central = QWidget(self)
+        self.central.setObjectName("centralwidget")  # themed as the raised ground
 
         self.ui = Ui_MainWindow()
 
@@ -103,7 +108,7 @@ class ModbusMainWindow(QMainWindow):
         except ValueError:
             baudrate = 0
         if not 1200 <= baudrate <= 1_000_000:
-            QMessageBox.warning(self, "Invalid Baud Rate", "Enter a baud rate (e.g. 9600) or choose Auto.")
+            QMessageBox.warning(self, "Invalid baud rate", "Enter a baud rate (e.g. 9600) or choose Auto.")
             return False, None
         return True, baudrate
 
@@ -117,13 +122,13 @@ class ModbusMainWindow(QMainWindow):
         QTimer.singleShot(0, self._scan_local_devices if kind == "local" else self._scan_remote_devices)
 
     def _setup_window(self) -> None:
-        """
-        Configure main window after loading the .ui file.
-        """
-
-        self.setWindowTitle("Nuclearlab - Modbus")
-        # self.resize(1100, 750)
-        # self.setCentralWidget(self.ui)
+        """Title, button roles and field widths after loading the .ui file."""
+        self.setWindowTitle(PRODUCT_NAME)
+        theme.set_role(self.ui.local_btn, "connect")
+        theme.set_role(self.ui.remote_btn, "connect")
+        for combo, characters in ((self.ui.host_select, 15), (self.ui.port_select, 12)):
+            combo.setMinimumContentsLength(characters)  # full IP / device path stays visible
+            combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.ui.devices_group.hide()
 
     def _connect_signals(self) -> None:
@@ -157,7 +162,7 @@ class ModbusMainWindow(QMainWindow):
         """Connect to the device selected in the remote (TCP) dropdowns."""
         host = self.ui.host_select.currentText().strip()
         if not host:
-            QMessageBox.warning(self, "Invalid Connection", "Enter a remote host name or IP address.")
+            QMessageBox.warning(self, "Invalid connection", "Enter a remote host name or IP address.")
             return
         port = self._validated_integer(self.ui.remote_port_select.currentText(), "TCP port", 1, 65535)
         device_id = self._validated_integer(self.ui.remote_id_select.currentText(), "Modbus address", 1, 254)
@@ -183,7 +188,7 @@ class ModbusMainWindow(QMainWindow):
         """Connect to the serial device selected in the local dropdowns."""
         port = self.ui.port_select.currentText().strip()
         if not port:
-            QMessageBox.warning(self, "Invalid Connection", "Select or enter a serial port.")
+            QMessageBox.warning(self, "Invalid connection", "Select or enter a serial port.")
             return
         valid, baudrate = self._selected_baudrate()
         device_id = self._validated_integer(self.ui.local_id_select.currentText(), "Modbus address", 1, 254)
@@ -244,12 +249,12 @@ class ModbusMainWindow(QMainWindow):
         try:
             value = int(text.strip())
         except (AttributeError, ValueError):
-            QMessageBox.warning(self, "Invalid Connection", f"{label} must be an integer.")
+            QMessageBox.warning(self, "Invalid connection", f"{label} must be an integer.")
             return None
         if not minimum <= value <= maximum:
             QMessageBox.warning(
                 self,
-                "Invalid Connection",
+                "Invalid connection",
                 f"{label} must be between {minimum} and {maximum}.",
             )
             return None
@@ -270,7 +275,7 @@ class ModbusMainWindow(QMainWindow):
             return True
         answer = QMessageBox.question(
             self,
-            "Device Type Mismatch",
+            "Device type mismatch",
             f"Selected type: {expected.name}\n"
             f"Hardware reports: {identity}\n\n"
             "The register map may not match the device.\n"
@@ -337,7 +342,7 @@ class ModbusMainWindow(QMainWindow):
             return
         QMessageBox.critical(
             self,
-            "Connection Failed",
+            "Connection failed",
             f"The {kind} device {stage} failed:\n{error}",
         )
         self._finish_connection(kind)
@@ -362,7 +367,7 @@ class ModbusMainWindow(QMainWindow):
         """Open a DeviceTab for device, or bring the existing tab to front."""
         if device in self._open_devices:
             self.ui.device_tabs.setCurrentWidget(self._open_devices[device])
-            QMessageBox.information(self, "Device Already Connected", f"{self.device_label(device)} is already connected.")
+            QMessageBox.information(self, "Device already connected", f"{self.device_label(device)} is already connected.")
             return
 
         if input_values is None or holding_values is None:
@@ -377,7 +382,7 @@ class ModbusMainWindow(QMainWindow):
             )
         except Exception as exc:
             self.manager.disconnect(device)
-            QMessageBox.critical(self, "Device Error", f"Failed to open {self.device_label(device)}:\n{exc}")
+            QMessageBox.critical(self, "Device error", f"Failed to open {self.device_label(device)}:\n{exc}")
             return
 
         index = self.ui.device_tabs.addTab(tab, self.device_label(device))
@@ -411,8 +416,8 @@ class ModbusMainWindow(QMainWindow):
         connection_menu.addAction(self.action_disconnect_tab)
         connection_menu.addAction(self.action_disconnect_all)
 
-        self.action_clear_plot = QAction("&Clear Plot", self)
-        self.action_debug_mode = QAction("&Debug Mode", self)
+        self.action_clear_plot = QAction("&Clear plot", self)
+        self.action_debug_mode = QAction("&Debug mode", self)
         self.action_debug_mode.setCheckable(True)
         self.action_raw_values = QAction("Show &raw values", self)
         self.action_raw_values.setCheckable(True)
@@ -420,8 +425,19 @@ class ModbusMainWindow(QMainWindow):
         view_menu.addAction(self.action_clear_plot)
         view_menu.addAction(self.action_raw_values)
         view_menu.addAction(self.action_debug_mode)
+        view_menu.addSeparator()
+        theme_menu = view_menu.addMenu("&Theme")
+        self.theme_actions = QActionGroup(self)
+        saved = theme.saved_theme_mode()
+        for mode, label in theme.THEME_LABELS.items():
+            action = theme_menu.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(mode == saved)
+            action.setData(mode.value)
+            self.theme_actions.addAction(action)
+        self.theme_actions.triggered.connect(self._on_theme_selected)
 
-        self.action_service_mode = QAction("&Service Mode", self)
+        self.action_service_mode = QAction("&Service mode", self)
         self.action_service_mode.setCheckable(True)
         connection_menu.addSeparator()
         connection_menu.addAction(self.action_service_mode)
@@ -637,7 +653,7 @@ class ModbusMainWindow(QMainWindow):
         if self._initial_scan_pending:
             logger.error("Initial %s device scan failed: %s", kind, error)
             return
-        QMessageBox.warning(self, "Scan Failed", f"The {kind} device scan failed:\n{error}")
+        QMessageBox.warning(self, "Scan failed", f"The {kind} device scan failed:\n{error}")
 
     def _on_scan_finished(self, kind: str, worker: DeviceScanThread) -> None:
         if self._scan_threads.get(kind) is worker:
@@ -745,8 +761,8 @@ class ModbusMainWindow(QMainWindow):
         """Show the About dialog."""
         QMessageBox.about(
             self,
-            "About Modbus Monitor",
-            f"<b>Modbus Monitor</b><br>Version {__version__}<br><br>Eastern Wall Technologies<br><br>Hardware monitoring and Modbus control application.",
+            "About nuclearLab Modbus Monitor",
+            f"<b>nuclearLab Modbus Monitor</b><br>Version {__version__}<br><br>Eastern Wall Technologies<br><br>Monitoring and control of SiPM, PMT high-voltage and Geiger-Mueller boards over Modbus RTU.",
         )
 
     def on_licenses_clicked(self) -> None:
@@ -828,6 +844,12 @@ class ModbusMainWindow(QMainWindow):
         self.action_debug_mode.setChecked(debug)
         if hasattr(self, "_log_status_bar"):
             self._log_status_bar.set_debug_mode(debug)
+
+    def _on_theme_selected(self, action: QAction) -> None:
+        mode = theme.ThemeMode(action.data())
+        theme.save_theme_mode(mode)
+        if mode != theme.colors().mode:
+            self.statusBar().showMessage(f"{theme.THEME_LABELS[mode]} theme applies at the next start", 8000)
 
     @property
     def show_raw_values(self) -> bool:

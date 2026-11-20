@@ -43,10 +43,12 @@ mDNS. Pick a port (or host) and Modbus address and press **Connect**. Press
   against the firmware limits before they are sent.
 - **Units:** values are shown in physical units. **View → Show raw values**
   switches tables and plots to raw register counts.
-- **Service password:** grey rows need it; use **Connection → Service Mode**.
+- **Service password:** grey rows need it; use **Connection → Service mode**.
 - **Plots:** tick **Plot** next to an input register. The spin boxes set the
   polling intervals.
 - **Log:** double-click the status bar to open it.
+- **Theme:** **View → Theme** offers EWT light (default), EWT dark or Classic.
+  The change applies at the next start; `NLAB_THEME=dark` overrides it for one launch.
 
 Options: `--baudrate 9600` fixes the serial rate. `--start-id 1 --end-id 16`
 sets the scanned address range.

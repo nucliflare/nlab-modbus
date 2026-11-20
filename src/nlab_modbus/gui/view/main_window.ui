@@ -138,9 +138,6 @@
         </item>
         <item row="2" column="3">
          <widget class="QPushButton" name="local_btn">
-          <property name="styleSheet">
-           <string>background-color: #d4edda; color: #155724;</string>
-          </property>
           <property name="text">
            <string>Connect</string>
           </property>
@@ -248,9 +245,6 @@
         </item>
         <item row="2" column="3">
          <widget class="QPushButton" name="remote_btn">
-          <property name="styleSheet">
-           <string>background-color: #d4edda; color: #155724;</string>
-          </property>
           <property name="text">
            <string>Connect</string>
           </property>
