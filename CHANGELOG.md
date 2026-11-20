@@ -16,6 +16,14 @@ All notable changes to this project are documented here. The project follows
 
 ### Changed
 
+- Transport: all clients are built in `nlab_modbus.core.transport` with
+  timeouts derived from the baud rate (0.24 s at 9600, 0.16 s at 115200,
+  0.26 s through the digitizer gateway) and no automatic retries. The
+  gateway client previously used 0.15 s with three silent retries, so slow
+  EEPROM-backed writes could be sent up to four times.
+- `DeviceManager.connect_local()` defaults to 9600 baud (the firmware's
+  RS-485 default) and rejects framings other than 8N1. Each device records
+  its `link` (port and baud rate, or gateway endpoint).
 - Device core: whole register tables are read in one FC04/FC03 transaction
   (holding polls go from up to 29 frames to one). The table length each
   board's firmware implements is detected on first use, so older firmware

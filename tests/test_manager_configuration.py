@@ -22,7 +22,7 @@ class _SerialClient:
 
 class ManagerConfigurationTests(unittest.TestCase):
     @patch("nlab_modbus.services.manager.time.sleep")
-    @patch("nlab_modbus.services.manager.ModbusSerialClient", side_effect=_SerialClient)
+    @patch("nlab_modbus.core.transport.ModbusSerialClient", side_effect=_SerialClient)
     def test_open_port_rejects_incompatible_serial_configuration(
         self,
         _client_factory,
@@ -37,7 +37,7 @@ class ManagerConfigurationTests(unittest.TestCase):
         manager.close_all()
 
     @patch("nlab_modbus.services.manager.time.sleep")
-    @patch("nlab_modbus.services.manager.ModbusSerialClient", side_effect=_SerialClient)
+    @patch("nlab_modbus.core.transport.ModbusSerialClient", side_effect=_SerialClient)
     def test_registered_address_rejects_a_different_device_type(
         self,
         _client_factory,

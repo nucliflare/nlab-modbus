@@ -20,6 +20,7 @@ from nlab_modbus.core.register_specs import (
     decode_register_value,
     encode_register_value,
 )
+from nlab_modbus.core.transport import Link
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,7 @@ class BaseModbusDevice:
         self.device_type: DeviceType | None = self.DEVICE_TYPE
         self.bus_lock: threading.RLock = threading.RLock()
         self._table_sizes: dict[RegisterType, int] = {}
+        self.link: Link | None = None  # set by DeviceManager
 
     # ---- transactions (the only code that touches the wire) ------------
 
