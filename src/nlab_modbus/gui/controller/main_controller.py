@@ -805,8 +805,8 @@ class ModbusMainWindow(QMainWindow):
 
     def _restore_settings(self) -> None:
         settings = QSettings("EWT", "nlab-modbus-gui")
-        debug = settings.value("view/debug_mode", False, type=bool)
-        self.action_raw_values.setChecked(settings.value("view/raw_values", False, type=bool))
+        debug = bool(settings.value("view/debug_mode", False, type=bool))
+        self.action_raw_values.setChecked(bool(settings.value("view/raw_values", False, type=bool)))
         self.action_debug_mode.setChecked(debug)
         if hasattr(self, "_log_status_bar"):
             self._log_status_bar.set_debug_mode(debug)

@@ -88,6 +88,8 @@ All notable changes to this project are documented here. The project follows
   connecting because live polling skipped their addresses.
 - Version words, Modbus frame counters and the Geiger pulse counters decode as
   unsigned, so they no longer turn negative above 32767.
+- Type-checker errors: unguarded optional links in `DeviceManager`, the mDNS
+  listener signature, and untyped settings reads in the main window.
 
 ### Removed
 

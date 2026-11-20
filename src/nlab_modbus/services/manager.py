@@ -117,6 +117,8 @@ class DeviceManager:
         with self._registry_lock:
             for (_key, device_id), device in self._devices_by_key.items():
                 link = device.link
+                if link is None:
+                    continue
                 entry = {"type": device.device_type, "device_id": device_id}
                 if link.kind == "serial":
                     snapshot["local"].append({**entry, "host": None, "port": link.address, "baudrate": link.baudrate})
@@ -187,13 +189,14 @@ class DeviceManager:
                 return
             for key in [k for k, v in self._devices_by_key.items() if v is device]:
                 del self._devices_by_key[key]
-            handle = self._handles.get(device.link.key) if device.link else None
-            if handle is not None:
+            link = device.link
+            handle = self._handles.get(link.key) if link is not None else None
+            if link is not None and handle is not None:
                 handle.refcount -= 1
                 if handle.refcount <= 0:
                     with handle.lock:
                         handle.client.close()
-                    del self._handles[device.link.key]
+                    del self._handles[link.key]
 
     def close_all(self) -> None:
         """Close every client and forget all devices."""

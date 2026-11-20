@@ -250,12 +250,12 @@ def scan_remote_boards(
     lock = threading.Lock()
 
     class _Collector(ServiceListener):
-        def add_service(self, zc_, type_, name):
+        def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
             if _stopped(should_stop):
                 return
             if name_filter is not None and name_filter.casefold() not in name.casefold():
                 return
-            info = zc_.get_service_info(type_, name, timeout=int(timeout * 1000))
+            info = zc.get_service_info(type_, name, timeout=int(timeout * 1000))
             if info:
                 with lock:
                     addresses_by_host.setdefault(info.server or name, set()).update(info.parsed_addresses())
