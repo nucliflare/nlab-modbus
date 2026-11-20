@@ -56,7 +56,7 @@ where = ["src"]
 "nlab_modbus.gui" = ["resources/*.ico", "resources/*.png", "resources/brand/*", "resources/fonts/*", "resources/icons/*"]
 
 [tool.bumpversion]
-current_version = "0.2.7"
+current_version = "0.3.0"
 commit = true
 tag = true
 tag_name = "v{new_version}"
